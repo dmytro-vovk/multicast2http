@@ -22,6 +22,10 @@ type Url struct {
 
 type UrlConfig map[string]Url
 
+const (
+	VALID_PATH = `^/[a-z0-9-]+$`
+)
+
 /**
  * Read and parse JSON config
  */
@@ -53,7 +57,7 @@ func ReadUrls(fileName *string) (UrlConfig, error) {
  * - interfaces exists
  */
 func configValid(config UrlConfig) bool {
-	var validPath = regexp.MustCompile(`^/[a-z0-9-]+$`)
+	var validPath = regexp.MustCompile(VALID_PATH)
 	var ifaceNames map[string]bool
 	interfaces, err := net.Interfaces()
 	if err != nil {
