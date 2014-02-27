@@ -5,16 +5,13 @@ import (
 	"log"
 	"os"
 	"time"
-	"errors"
 	"syscall"
 	"conf"
 	"net/http"
 	"flag"
 	"fmt"
 	"runtime"
-	"net"
-	"strconv"
-	"code.google.com/p/go.net/ipv4"
+	"stream"
 )
 
 var (
@@ -27,7 +24,7 @@ func urlHandler(w http.ResponseWriter, r *http.Request) {
 	log.Printf("Connection from %s", r.RemoteAddr)
 	if url, has := urls[r.URL.Path]; has {
 		log.Printf("Serving source %s", url.Source)
-		stream(w, url)
+		doStream(w, url)
 		log.Printf("Stream ended")
 	} else {
 		log.Printf("Source not found for URL %s", r.URL.Path)
@@ -39,6 +36,12 @@ func notFound(w http.ResponseWriter) {
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	w.WriteHeader(404)
 	fmt.Fprintln(w, "<h1>Not found</h1><p>Requested source not defined</p>")
+}
+
+func serverFail(w http.ResponseWriter, message string) {
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	w.WriteHeader(500)
+	fmt.Fprintln(w, "<h1>Internal Error</h1><p>"+message+"</p>")
 }
 
 func osListener() {
@@ -59,27 +62,10 @@ func osListener() {
 	}
 }
 
-func stream(w http.ResponseWriter, url conf.Url) {
-	f, err := getSocketFile(url.Source)
+func doStream(w http.ResponseWriter, url conf.Url) {
+	c, err := stream.GetStreamSource(url)
 	if err != nil {
-		return
-	}
-	c, err := net.FilePacketConn(f)
-	if err != nil {
-		log.Printf("Failed to get packet file connection: %s", err)
-		return
-	}
-	f.Close()
-	defer c.Close()
-	host, _, err := net.SplitHostPort(url.Source)
-	ipAddr := net.ParseIP(host)
-	if err != nil {
-		log.Printf("Cannot resolve address %s", url.Source)
-		return
-	}
-	iface, _ := net.InterfaceByName(url.Interface)
-	if err := ipv4.NewPacketConn(c).JoinGroup(iface, &net.UDPAddr{IP: net.IPv4(ipAddr[12], ipAddr[13], ipAddr[14], ipAddr[15])}); err != nil {
-		log.Printf("Failed to join mulitcast group: %s", err)
+		serverFail(w, "Could not get stream source")
 		return
 	}
 	b := make([]byte, 1472) // Length of UDP packet payload
@@ -96,23 +82,6 @@ func stream(w http.ResponseWriter, url conf.Url) {
 	}
 }
 
-func getSocketFile(address string) (*os.File, error) {
-	host, port, err := net.SplitHostPort(address)
-	ipAddr := net.ParseIP(host)
-	dPort, _ := strconv.Atoi(port)
-	s, err := syscall.Socket(syscall.AF_INET, syscall.SOCK_DGRAM, 0)
-	if err != nil {
-		log.Printf("Syscall.Socket: %s", err)
-		return nil, errors.New("Cannot create socket")
-	}
-	syscall.SetsockoptInt(s, syscall.SOL_SOCKET, syscall.SO_REUSEADDR, 1)
-	lsa := &syscall.SockaddrInet4{Port: dPort, Addr: [4]byte{ipAddr[12], ipAddr[13], ipAddr[14], ipAddr[15]}}
-	if err := syscall.Bind(s, lsa); err != nil {
-		log.Printf("Syscall.Bind: %s", err)
-		return nil, errors.New("Cannot bind socket")
-	}
-	return os.NewFile(uintptr(s), "udp4:"+host+":"+port+"->"), nil
-}
 
 func loadUrlConfig() {
 	c, err := conf.ReadUrls(urlsConfigPath)
@@ -131,5 +100,5 @@ func main() {
 	go osListener()
 	http.HandleFunc("/", urlHandler)
 	log.Printf("Listening on %s", *listenOn)
-	http.ListenAndServe(*listenOn, nil)
+	log.Fatalf("%s", http.ListenAndServe(*listenOn, nil))
 }
