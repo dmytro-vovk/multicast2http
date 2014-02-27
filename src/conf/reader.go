@@ -23,7 +23,7 @@ type Url struct {
 type UrlConfig map[string]Url
 
 const (
-	VALID_PATH = `^/[a-z0-9-]+$`
+	VALID_PATH = `^/[a-z0-9_-]+$`
 )
 
 /**

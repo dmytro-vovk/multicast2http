@@ -8,20 +8,25 @@ import (
 	"os/signal"
 	"log"
 	"os"
-	"time"
 	"syscall"
 	"conf"
 	"net/http"
 	"flag"
-	"fmt"
 	"runtime"
 	"stream"
+	"response"
+	"net"
 )
 
 var (
-	urlsConfigPath = flag.String("sources", "../config/urls.json", "File with URL to source mappgings")
-	listenOn       = flag.String("listen", ":7979", "Ip:port to listen for clients")
-	urls conf.UrlConfig
+	urlsConfigPath     = flag.String("sources", "../config/urls.json", "File with URL to source mappgings")
+	networksConfigPath = flag.String("networks", "../config/networks.json", "File with networks to sets mappings")
+	listenOn           = flag.String("listen", ":7979", "Ip:port to listen for clients")
+	fakeStream         = flag.String("fake-stream", "fake.ts", "Fake stream to return to non authorized clients")
+	enableWebControls  = flag.Bool("enable-web-controls", false, "Wether to enable controls via special paths")
+urls conf.UrlConfig
+	networks conf.NetworkConfig
+	statsChannel chan bool
 )
 
 /**
@@ -30,51 +35,62 @@ var (
 func urlHandler(w http.ResponseWriter, r *http.Request) {
 	log.Printf("Connection from %s", r.RemoteAddr)
 	if url, has := urls[r.URL.Path]; has {
-		log.Printf("Serving source %s", url.Source)
-		doStream(w, url)
-		log.Printf("Stream ended")
+		if canAccess(url, r.RemoteAddr) {
+			log.Printf("Serving source %s", url.Source)
+			statsChannel <- true
+			defer func() {
+				statsChannel <- false
+			}()
+			doStream(w, url)
+			log.Printf("Stream ended")
+		} else {
+			log.Printf("User at %s cannot access %s", r.RemoteAddr, url.Source)
+			http.ServeFile(w, r, *fakeStream)
+		}
 	} else {
 		log.Printf("Source not found for URL %s", r.URL.Path)
-		notFound(w)
+		response.NotFound(w)
 	}
 }
 
 /**
- * 404 Not Found page
+ * Tells ir remote address allowed to access particular URL
  */
-func notFound(w http.ResponseWriter) {
-	w.Header().Set("Content-Type", "text/html; charset=utf-8")
-	w.WriteHeader(404)
-	fmt.Fprintln(w, "<h1>Not found</h1><p>Requested source not defined</p>")
+func canAccess(url conf.Url, address string) bool {
+	host, _, _ := net.SplitHostPort(address)
+	ip := net.ParseIP(host)
+	for _, v := range networks {
+		if v.Network.Contains(ip) {
+			for _, set := range v.Sets {
+				if set == url.Set {
+					return true
+				}
+			}
+		}
+	}
+	return false
 }
 
 /**
- * 500 Internal Error page
- */
-func serverFail(w http.ResponseWriter, message string) {
-	w.Header().Set("Content-Type", "text/html; charset=utf-8")
-	w.WriteHeader(500)
-	fmt.Fprintln(w, "<h1>Internal Error</h1><p>"+message+"</p>")
-}
-
-/**
- * OS signals listener
+ * OS stop signals listener
  */
 func osListener() {
 	osExitSignals := make(chan os.Signal, 1)
-	osHupSignals := make(chan os.Signal, 1)
 	signal.Notify(osExitSignals, os.Interrupt, os.Kill)
+	signal := <-osExitSignals
+	log.Fatalf("Exiting due to %s", signal)
+}
+
+/**
+ * OS HUP signal listener
+ */
+func hupListener() {
+	osHupSignals := make(chan os.Signal, 1)
 	signal.Notify(osHupSignals, syscall.SIGHUP)
 	for {
-		select {
-		case signal := <-osExitSignals:
-			log.Fatalf("Exiting due to %s", signal)
-		case <-osHupSignals:
-			go loadUrlConfig()
-		default:
-			time.Sleep(100 * time.Millisecond)
-		}
-		time.Sleep(50 * time.Millisecond)
+		<-osHupSignals
+		go loadUrlConfig()
+		go loadNetworkConfig()
 	}
 }
 
@@ -84,9 +100,10 @@ func osListener() {
 func doStream(w http.ResponseWriter, url conf.Url) {
 	c, err := stream.GetStreamSource(url)
 	if err != nil {
-		serverFail(w, "Could not get stream source")
+		response.ServerFail(w, "Could not get stream source")
 		return
 	}
+	defer c.Close()
 	b := make([]byte, 1472) // Length of UDP packet payload
 	localAddress := c.LocalAddr().String()
 	for {
@@ -96,7 +113,9 @@ func doStream(w http.ResponseWriter, url conf.Url) {
 			return
 		}
 		if url.Source == localAddress {
-			w.Write(b[:n])
+			if _, err := w.Write(b[:n]); err != nil {
+				return
+			}
 		}
 	}
 }
@@ -107,17 +126,38 @@ func doStream(w http.ResponseWriter, url conf.Url) {
 func loadUrlConfig() {
 	cfg, err := conf.ReadUrls(urlsConfigPath)
 	if err == nil {
-		reconfigureSources(cfg)
+		urls = cfg
 	} else {
 		log.Print("Config not loaded")
 	}
 }
 
+func loadNetworkConfig() {
+	cfg, err := conf.ReadNetworks(networksConfigPath)
+	if err == nil {
+		networks = cfg
+	} else {
+		log.Print("Network config not loaded")
+	}
+}
+
+func reloadConfigs(w http.ResponseWriter, r *http.Request) {
+	loadUrlConfig()
+	loadNetworkConfig()
+	response.ConfigReloaded(w)
+}
+
 /**
- * Apply new config, remove non-existing sources, add new ones
+ * Stats listener
  */
-func reconfigureSources(newConfig conf.UrlConfig) {
-	urls = newConfig
+func statsCollector() {
+	for {
+		if s := <-statsChannel; s {
+			response.Stats.RunningStreams++
+		} else if response.Stats.RunningStreams > 0 { // Just to prevent uint underflow
+			response.Stats.RunningStreams--
+		}
+	}
 }
 
 /**
@@ -128,7 +168,15 @@ func main() {
 	flag.Parse()
 	log.Printf("Process ID: %d", os.Getpid())
 	loadUrlConfig()
+	loadNetworkConfig()
+	statsChannel = make(chan bool, 10)
+	go statsCollector()
 	go osListener()
+	go hupListener()
+	if *enableWebControls {
+		http.HandleFunc("/server-status", response.ShowStatus)
+		http.HandleFunc("/reload-config", reloadConfigs)
+	}
 	http.HandleFunc("/", urlHandler)
 	log.Printf("Listening on %s", *listenOn)
 	log.Fatalf("%s", http.ListenAndServe(*listenOn, nil))

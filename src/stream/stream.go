@@ -29,15 +29,14 @@ func GetStreamSource(url conf.Url) (net.PacketConn, error) {
 		return nil, err
 	}
 	f.Close()
-	defer c.Close()
 	host, _, err := net.SplitHostPort(url.Source)
-	ipAddr := net.ParseIP(host)
+	ipAddr := net.ParseIP(host).To4()
 	if err != nil {
 		log.Printf("Cannot resolve address %s", url.Source)
 		return nil, err
 	}
 	iface, _ := net.InterfaceByName(url.Interface)
-	if err := ipv4.NewPacketConn(c).JoinGroup(iface, &net.UDPAddr{IP: net.IPv4(ipAddr[12], ipAddr[13], ipAddr[14], ipAddr[15])}); err != nil {
+	if err := ipv4.NewPacketConn(c).JoinGroup(iface, &net.UDPAddr{IP: net.IPv4(ipAddr[0], ipAddr[1], ipAddr[2], ipAddr[3])}); err != nil {
 		log.Printf("Failed to join mulitcast group: %s", err)
 		return nil, err
 	}
@@ -49,7 +48,7 @@ func GetStreamSource(url conf.Url) (net.PacketConn, error) {
  */
 func getSocketFile(address string) (*os.File, error) {
 	host, port, err := net.SplitHostPort(address)
-	ipAddr := net.ParseIP(host)
+	ipAddr := net.ParseIP(host).To4()
 	dPort, _ := strconv.Atoi(port)
 	s, err := syscall.Socket(syscall.AF_INET, syscall.SOCK_DGRAM, 0)
 	if err != nil {
@@ -57,7 +56,7 @@ func getSocketFile(address string) (*os.File, error) {
 		return nil, errors.New("Cannot create socket")
 	}
 	syscall.SetsockoptInt(s, syscall.SOL_SOCKET, syscall.SO_REUSEADDR, 1)
-	lsa := &syscall.SockaddrInet4{Port: dPort, Addr: [4]byte{ipAddr[12], ipAddr[13], ipAddr[14], ipAddr[15]}}
+	lsa := &syscall.SockaddrInet4{Port: dPort, Addr: [4]byte{ipAddr[0], ipAddr[1], ipAddr[2], ipAddr[3]}}
 	if err := syscall.Bind(s, lsa); err != nil {
 		log.Printf("Syscall.Bind: %s", err)
 		return nil, errors.New("Cannot bind socket")
