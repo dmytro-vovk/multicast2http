@@ -1,3 +1,7 @@
+/**
+ * @author Dmitry Vovk <dmitry.vovk@gmail.com>
+ * @copyright 2014
+ */
 package main
 
 import (
@@ -20,6 +24,9 @@ var (
 	urls conf.UrlConfig
 )
 
+/**
+ * Handler to initiate streaming (or not)
+ */
 func urlHandler(w http.ResponseWriter, r *http.Request) {
 	log.Printf("Connection from %s", r.RemoteAddr)
 	if url, has := urls[r.URL.Path]; has {
@@ -32,18 +39,27 @@ func urlHandler(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+/**
+ * 404 Not Found page
+ */
 func notFound(w http.ResponseWriter) {
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	w.WriteHeader(404)
 	fmt.Fprintln(w, "<h1>Not found</h1><p>Requested source not defined</p>")
 }
 
+/**
+ * 500 Internal Error page
+ */
 func serverFail(w http.ResponseWriter, message string) {
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	w.WriteHeader(500)
 	fmt.Fprintln(w, "<h1>Internal Error</h1><p>"+message+"</p>")
 }
 
+/**
+ * OS signals listener
+ */
 func osListener() {
 	osExitSignals := make(chan os.Signal, 1)
 	osHupSignals := make(chan os.Signal, 1)
@@ -62,6 +78,9 @@ func osListener() {
 	}
 }
 
+/**
+ * Run streaming for given URL
+ */
 func doStream(w http.ResponseWriter, url conf.Url) {
 	c, err := stream.GetStreamSource(url)
 	if err != nil {
@@ -82,16 +101,28 @@ func doStream(w http.ResponseWriter, url conf.Url) {
 	}
 }
 
-
+/**
+ * Reread sources config
+ */
 func loadUrlConfig() {
-	c, err := conf.ReadUrls(urlsConfigPath)
+	cfg, err := conf.ReadUrls(urlsConfigPath)
 	if err == nil {
-		urls = c
+		reconfigureSources(cfg)
 	} else {
 		log.Print("Config not loaded")
 	}
 }
 
+/**
+ * Apply new config, remove non-existing sources, add new ones
+ */
+func reconfigureSources(newConfig conf.UrlConfig) {
+	urls = newConfig
+}
+
+/**
+ * Main entry point
+ */
 func main() {
 	runtime.GOMAXPROCS(runtime.NumCPU())
 	flag.Parse()

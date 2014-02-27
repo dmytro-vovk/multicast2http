@@ -1,3 +1,7 @@
+/**
+ * @author Dmitry Vovk <dmitry.vovk@gmail.com>
+ * @copyright 2014
+ */
 package stream
 
 import (
@@ -11,6 +15,9 @@ import (
 	"code.google.com/p/go.net/ipv4"
 )
 
+/**
+ * Returns UDP Multicast packet connection to read incoming bytes from
+ */
 func GetStreamSource(url conf.Url) (net.PacketConn, error) {
 	f, err := getSocketFile(url.Source)
 	if err != nil {
@@ -37,6 +44,9 @@ func GetStreamSource(url conf.Url) (net.PacketConn, error) {
 	return c, nil
 }
 
+/**
+ * Returns bound UDP socket
+ */
 func getSocketFile(address string) (*os.File, error) {
 	host, port, err := net.SplitHostPort(address)
 	ipAddr := net.ParseIP(host)

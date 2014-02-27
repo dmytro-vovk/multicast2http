@@ -1,3 +1,7 @@
+/**
+ * @author Dmitry Vovk <dmitry.vovk@gmail.com>
+ * @copyright 2014
+ */
 package conf
 
 import (
@@ -18,6 +22,9 @@ type Url struct {
 
 type UrlConfig map[string]Url
 
+/**
+ * Read and parse JSON config
+ */
 func ReadUrls(fileName *string) (UrlConfig, error) {
 	log.Print("Reading config")
 	file, err := ioutil.ReadFile(*fileName)
@@ -39,6 +46,12 @@ func ReadUrls(fileName *string) (UrlConfig, error) {
 	}
 }
 
+/**
+ * Check config for validity:
+ * - urls match regexp pattern
+ * - ip:port pairs are valid ip and port number
+ * - interfaces exists
+ */
 func configValid(config UrlConfig) bool {
 	var validPath = regexp.MustCompile(`^/[a-z0-9-]+$`)
 	var ifaceNames map[string]bool
