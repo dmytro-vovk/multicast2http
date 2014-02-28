@@ -24,7 +24,7 @@ var (
 	listenOn           = flag.String("listen", ":7979", "Ip:port to listen for clients")
 	fakeStream         = flag.String("fake-stream", "fake.ts", "Fake stream to return to non authorized clients")
 	enableWebControls  = flag.Bool("enable-web-controls", false, "Wether to enable controls via special paths")
-urls conf.UrlConfig
+	urls conf.UrlConfig
 	networks conf.NetworkConfig
 	statsChannel chan bool
 )
@@ -160,9 +160,7 @@ func statsCollector() {
 	}
 }
 
-/**
- * Main entry point
- */
+// Main entry point
 func main() {
 	runtime.GOMAXPROCS(runtime.NumCPU())
 	flag.Parse()
