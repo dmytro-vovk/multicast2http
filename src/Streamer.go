@@ -26,7 +26,7 @@ var (
 	enableWebControls  = flag.Bool("enable-web-controls", false, "Wether to enable controls via special paths")
 	urls conf.UrlConfig
 	networks conf.NetworkConfig
-	statsChannel chan bool
+statsChannel chan bool
 )
 
 /**
