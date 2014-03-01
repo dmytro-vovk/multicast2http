@@ -20,12 +20,12 @@ import (
 )
 
 var (
-	urlsConfigPath     = flag.String("sources", "../config/urls.json", "File with URL to source mappgings")
-	networksConfigPath = flag.String("networks", "../config/networks.json", "File with networks to sets mappings")
+	urlsConfigPath    = flag.String("sources", "../config/sources.json", "File with URL to source mappings")
+networksConfigPath = flag.String("networks", "../config/networks.json", "File with networks to sets mappings")
 	listenOn           = flag.String("listen", ":7979", "Ip:port to listen for clients")
 	fakeStream         = flag.String("fake-stream", "fake.ts", "Fake stream to return to non authorized clients")
-	enableWebControls  = flag.Bool("enable-web-controls", false, "Wether to enable controls via special paths")
-	urls conf.UrlConfig
+	enableWebControls = flag.Bool("enable-web-controls", false, "Whether to enable controls via special paths")
+urls conf.UrlConfig
 	statsChannel chan bool
 )
 
