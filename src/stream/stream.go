@@ -13,11 +13,49 @@ import (
 	"net"
 	"conf"
 	"code.google.com/p/go.net/ipv4"
+	"io"
+	"response"
+	"net/http"
+	"fmt"
 )
 
-/**
- * Returns UDP Multicast packet connection to read incoming bytes from
- */
+// Run streaming for given URL
+func UdpStream(w http.ResponseWriter, url conf.Url) {
+	c, err := GetStreamSource(url)
+	if err != nil {
+		response.ServerFail(w, fmt.Sprintf("Could not get UDP stream source %s", url.Source))
+		return
+	}
+	defer c.Close()
+	b := make([]byte, conf.MaxMTU)
+	localAddress := c.LocalAddr().String()
+	for {
+		n, _, err := c.ReadFrom(b)
+		if err != nil {
+			log.Printf("Failed to read from UDP stream %s: %s", url.Source, err)
+			return
+		}
+		if url.Source == localAddress {
+			if _, err := w.Write(b[:n]); err != nil {
+				return
+			}
+		}
+	}
+}
+
+// Perform actual unicast streaming
+func HttpStream(w http.ResponseWriter, url conf.Url) {
+	r, err := http.Get(url.Source)
+	if err != nil {
+		log.Printf("Failed to open HTTP stream %s: %s", url.Source, err)
+		response.NotFound(w)
+		return
+	}
+	defer r.Body.Close()
+	io.Copy(w, r.Body)
+}
+
+// Returns UDP Multicast packet connection to read incoming bytes from
 func GetStreamSource(url conf.Url) (net.PacketConn, error) {
 	f, err := getSocketFile(url.Source)
 	if err != nil {
@@ -43,9 +81,7 @@ func GetStreamSource(url conf.Url) (net.PacketConn, error) {
 	return c, nil
 }
 
-/**
- * Returns bound UDP socket
- */
+// Returns bound UDP socket
 func getSocketFile(address string) (*os.File, error) {
 	host, port, err := net.SplitHostPort(address)
 	ipAddr := net.ParseIP(host).To4()

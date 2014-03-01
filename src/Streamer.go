@@ -16,6 +16,7 @@ import (
 	"stream"
 	"response"
 	"net"
+	netUrl "net/url"
 )
 
 var (
@@ -31,14 +32,26 @@ var (
 // Handler to initiate streaming (or not)
 func urlHandler(w http.ResponseWriter, r *http.Request) {
 	log.Printf("Connection from %s", r.RemoteAddr)
-	if url, has := urls[r.URL.Path]; has {
+	if url, ok := urls[r.URL.Path]; ok {
 		if canAccess(url, r.RemoteAddr) {
-			log.Printf("Serving source %s", url.Source)
+			log.Printf("Serving source %s at %s", r.URL.Path, url.Source)
+			// Track number of connected users
 			statsChannel <- true
 			defer func() {
 				statsChannel <- false
 			}()
-			doStream(w, url)
+			// Source address will be parsed for sure here. @see conf.configValid()
+			parsedUrl, _ := netUrl.Parse(url.Source)
+			if parsedUrl.Scheme == "udp" {
+				url.Source = parsedUrl.Host
+				stream.UdpStream(w, url)
+			} else if parsedUrl.Scheme == "http" {
+				stream.HttpStream(w, url)
+			} else {
+				log.Printf("Unsupported stream protocol: ", parsedUrl.Scheme)
+				response.NotFound(w)
+				return
+			}
 			log.Printf("Stream ended")
 		} else {
 			log.Printf("User at %s cannot access %s", r.RemoteAddr, url.Source)
@@ -80,30 +93,6 @@ func hupListener() {
 	}
 }
 
-// Run streaming for given URL
-func doStream(w http.ResponseWriter, url conf.Url) {
-	c, err := stream.GetStreamSource(url)
-	if err != nil {
-		response.ServerFail(w, "Could not get stream source")
-		return
-	}
-	defer c.Close()
-	b := make([]byte, 1472) // Length of UDP packet payload
-	localAddress := c.LocalAddr().String()
-	for {
-		n, _, err := c.ReadFrom(b)
-		if err != nil {
-			log.Printf("Failed to read from stream: %s", err)
-			return
-		}
-		if url.Source == localAddress {
-			if _, err := w.Write(b[:n]); err != nil {
-				return
-			}
-		}
-	}
-}
-
 // Reread sources config
 func loadConfig() {
 	_urls, err := conf.ReadUrls(urlsConfigPath)
@@ -127,7 +116,6 @@ func mergeConfigs(_urls conf.UrlConfig, _nets conf.NetworkConfig) conf.UrlConfig
 		for _, _net := range _nets {
 			// Go over sets
 			for _, set := range _net.Sets {
-				log.Printf("Set %d", set)
 				if _url.Set == set {
 					_url.Networks = append(_url.Networks, _net.Network)
 				}

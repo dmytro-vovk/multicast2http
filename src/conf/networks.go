@@ -54,6 +54,7 @@ func networkConfigValid(config RawNetworkConfig) (NetworkConfig, bool) {
 		_, ipNet, err := net.ParseCIDR(network)
 		if err != nil {
 			log.Printf("Could not parse network address %s", network)
+			return NetworkConfig{}, false
 		}
 		cfg[network] = NetworkConfigRecord{Network: *ipNet, Sets: sets}
 	}
