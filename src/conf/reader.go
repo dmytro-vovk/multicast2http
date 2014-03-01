@@ -15,9 +15,10 @@ import (
 )
 
 type Url struct {
-	Source    string `json:"source"`
-	Interface string `json:"interface"`
-	Set       uint `json:"set"`
+	Source    string `json:"source"`    // IP:port of stream source
+	Interface string `json:"interface"` // NIC name
+	Set       uint `json:"set"`         // Set id
+	Networks  []net.IPNet               // Allowed networks (based on set values in networks config)
 }
 
 type UrlConfig map[string]Url
@@ -26,9 +27,7 @@ const (
 	VALID_PATH = `^/[a-z0-9_-]+$`
 )
 
-/**
- * Read and parse JSON config
- */
+// Read and parse JSON sources config
 func ReadUrls(fileName *string) (UrlConfig, error) {
 	log.Print("Reading config")
 	file, err := ioutil.ReadFile(*fileName)

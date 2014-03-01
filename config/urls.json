@@ -15,9 +15,8 @@
 		"set": 2
 	},
 	"/eurosport2": {
-                "source":"234.1.20.5:1234",
-                "interface": "eth3.710",
-                "set": 2
-        }
-
+		"source":"234.1.20.5:1234",
+		"interface": "eth3.710",
+		"set": 2
+	}
 }

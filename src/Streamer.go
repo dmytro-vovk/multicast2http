@@ -25,13 +25,10 @@ var (
 	fakeStream         = flag.String("fake-stream", "fake.ts", "Fake stream to return to non authorized clients")
 	enableWebControls  = flag.Bool("enable-web-controls", false, "Wether to enable controls via special paths")
 	urls conf.UrlConfig
-	networks conf.NetworkConfig
-statsChannel chan bool
+	statsChannel chan bool
 )
 
-/**
- * Handler to initiate streaming (or not)
- */
+// Handler to initiate streaming (or not)
 func urlHandler(w http.ResponseWriter, r *http.Request) {
 	log.Printf("Connection from %s", r.RemoteAddr)
 	if url, has := urls[r.URL.Path]; has {
@@ -53,27 +50,19 @@ func urlHandler(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-/**
- * Tells ir remote address allowed to access particular URL
- */
+// Tells ir remote address allowed to access particular URL
 func canAccess(url conf.Url, address string) bool {
 	host, _, _ := net.SplitHostPort(address)
 	ip := net.ParseIP(host)
-	for _, v := range networks {
-		if v.Network.Contains(ip) {
-			for _, set := range v.Sets {
-				if set == url.Set {
-					return true
-				}
-			}
+	for _, n := range url.Networks {
+		if n.Contains(ip) {
+			return true
 		}
 	}
 	return false
 }
 
-/**
- * OS stop signals listener
- */
+// OS stop signals listener
 func osListener() {
 	osExitSignals := make(chan os.Signal, 1)
 	signal.Notify(osExitSignals, os.Interrupt, os.Kill)
@@ -81,22 +70,17 @@ func osListener() {
 	log.Fatalf("Exiting due to %s", signal)
 }
 
-/**
- * OS HUP signal listener
- */
+// OS HUP signal listener
 func hupListener() {
 	osHupSignals := make(chan os.Signal, 1)
 	signal.Notify(osHupSignals, syscall.SIGHUP)
 	for {
 		<-osHupSignals
-		go loadUrlConfig()
-		go loadNetworkConfig()
+		loadConfig()
 	}
 }
 
-/**
- * Run streaming for given URL
- */
+// Run streaming for given URL
 func doStream(w http.ResponseWriter, url conf.Url) {
 	c, err := stream.GetStreamSource(url)
 	if err != nil {
@@ -120,36 +104,46 @@ func doStream(w http.ResponseWriter, url conf.Url) {
 	}
 }
 
-/**
- * Reread sources config
- */
-func loadUrlConfig() {
-	cfg, err := conf.ReadUrls(urlsConfigPath)
+// Reread sources config
+func loadConfig() {
+	_urls, err := conf.ReadUrls(urlsConfigPath)
 	if err == nil {
-		urls = cfg
+		_nets, err := conf.ReadNetworks(networksConfigPath)
+		if err == nil {
+			urls = mergeConfigs(_urls, _nets)
+		} else {
+			log.Print("Network config not loaded")
+		}
 	} else {
 		log.Print("Config not loaded")
 	}
 }
 
-func loadNetworkConfig() {
-	cfg, err := conf.ReadNetworks(networksConfigPath)
-	if err == nil {
-		networks = cfg
-	} else {
-		log.Print("Network config not loaded")
+// Populate sources with allowed networks based on sets
+func mergeConfigs(_urls conf.UrlConfig, _nets conf.NetworkConfig) conf.UrlConfig {
+	// Go over sources
+	for u, _url := range _urls {
+		// Go over networks
+		for _, _net := range _nets {
+			// Go over sets
+			for _, set := range _net.Sets {
+				log.Printf("Set %d", set)
+				if _url.Set == set {
+					_url.Networks = append(_url.Networks, _net.Network)
+				}
+			}
+		}
+		_urls[u] = _url
 	}
+	return _urls
 }
 
 func reloadConfigs(w http.ResponseWriter, r *http.Request) {
-	loadUrlConfig()
-	loadNetworkConfig()
+	loadConfig()
 	response.ConfigReloaded(w)
 }
 
-/**
- * Stats listener
- */
+// Stats listener
 func statsCollector() {
 	for {
 		if s := <-statsChannel; s {
@@ -165,8 +159,7 @@ func main() {
 	runtime.GOMAXPROCS(runtime.NumCPU())
 	flag.Parse()
 	log.Printf("Process ID: %d", os.Getpid())
-	loadUrlConfig()
-	loadNetworkConfig()
+	loadConfig()
 	statsChannel = make(chan bool, 10)
 	go statsCollector()
 	go osListener()

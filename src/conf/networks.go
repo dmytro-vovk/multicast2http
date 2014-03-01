@@ -19,6 +19,7 @@ type NetworkConfigRecord struct {
 
 type NetworkConfig map[string]NetworkConfigRecord
 
+// Read and parse JSON networks config
 func ReadNetworks(fileName *string) (NetworkConfig, error) {
 	log.Print("Reading config")
 	file, err := ioutil.ReadFile(*fileName)
@@ -40,6 +41,7 @@ func ReadNetworks(fileName *string) (NetworkConfig, error) {
 	}
 }
 
+// Tells if networks config valid
 func networkConfigValid(config RawNetworkConfig) (NetworkConfig, bool) {
 	cfg := make(map[string]NetworkConfigRecord, len(config))
 	for network, sets := range config {
