@@ -128,7 +128,7 @@ func mergeConfigs(_urls conf.UrlConfig, _nets conf.NetworkConfig) conf.UrlConfig
 	return _urls
 }
 
-func reloadConfigs(w http.ResponseWriter, r *http.Request) {
+func reloadConfigs(w http.ResponseWriter, _ *http.Request) {
 	loadConfig()
 	response.ConfigReloaded(w)
 }
