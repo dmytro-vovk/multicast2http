@@ -10,7 +10,7 @@ const msg int = 17
 func TestCast(t *testing.T) {
 	wgBefore := sync.WaitGroup{}
 	wgAfter := sync.WaitGroup{}
-	c := New()
+	c := New(1)
 	defer c.Close()
 	for i := 1; i < 6; i++ {
 		wgBefore.Add(1)
