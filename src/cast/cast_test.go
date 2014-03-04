@@ -3,7 +3,6 @@ package cast
 import (
 	"testing"
 	"sync"
-	"log"
 )
 
 const msg int = 17
@@ -29,12 +28,13 @@ func client(c *caster, t *testing.T, wg1, wg2 *sync.WaitGroup) {
 	wg1.Done()
 	defer c.Leave(ch)
 	defer wg2.Done()
-	r := <-ch
-	log.Printf("Got message %v", r)
-	if r == msg {
-		return
-	} else {
-		t.Errorf("Got wrong broadcast message")
+	select {
+	case r := <-ch:
+		if r == msg {
+			return
+		} else {
+			t.Errorf("Got wrong broadcast message")
+		}
 	}
-
+	t.Error("Did not get anything :(")
 }
