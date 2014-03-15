@@ -8,8 +8,8 @@ type Channel interface {
 }
 
 type Caster struct {
-in      chan interface{}             // Messages here
-	join    chan chan <- interface{}     // Knock into this chan to get subscribed
+	in      chan interface{}             // Messages here
+join    chan chan <- interface{}     // Knock into this chan to get subscribed
 	leave   chan chan <- interface{}     // ...and unsubscribed
 	members map[chan <- interface{}]bool // List of active listeners
 }
