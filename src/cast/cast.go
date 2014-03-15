@@ -7,16 +7,16 @@ type Channel interface {
 	Close()
 }
 
-type caster struct {
-	in      chan interface{}             // Messages here
+type Caster struct {
+in      chan interface{}             // Messages here
 	join    chan chan <- interface{}     // Knock into this chan to get subscribed
 	leave   chan chan <- interface{}     // ...and unsubscribed
 	members map[chan <- interface{}]bool // List of active listeners
 }
 
 // Return new broadcaster instance
-func New(queueLength uint) *caster {
-	c := &caster{
+func New(queueLength uint) *Caster {
+	c := &Caster{
 		in: make(chan interface{}, queueLength),
 		join: make(chan chan <- interface{}),
 		leave: make(chan chan <- interface{}),
@@ -27,7 +27,7 @@ func New(queueLength uint) *caster {
 }
 
 // Do sending data to all listeners
-func (this *caster) broadcast(data interface{}) {
+func (this *Caster) broadcast(data interface{}) {
 	for c := range this.members {
 		// Make sending data to members non-blocking
 		go func(ch chan <- interface{}, m interface{}) {
@@ -37,7 +37,7 @@ func (this *caster) broadcast(data interface{}) {
 }
 
 // Process all messages
-func (this *caster) run() {
+func (this *Caster) run() {
 	for {
 		select {
 		case data := <-this.in:
@@ -55,21 +55,21 @@ func (this *caster) run() {
 }
 
 // Members supply their own channel they will listen on
-func (this *caster) Join(ch chan <- interface{}) {
+func (this *Caster) Join(ch chan <- interface{}) {
 	this.join <- ch
 }
 
 // Member wants to leave the broadcast
-func (this *caster) Leave(ch chan <- interface{}) {
+func (this *Caster) Leave(ch chan <- interface{}) {
 	this.leave <- ch
 }
 
 // Close the broadcast channel
-func (this *caster) Close() {
+func (this *Caster) Close() {
 	close(this.join)
 }
 
 // Send data to all listeners
-func (this *caster) Send(data interface{}) {
+func (this *Caster) Send(data interface{}) {
 	this.in <- data
 }

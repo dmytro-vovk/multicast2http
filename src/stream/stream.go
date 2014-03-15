@@ -16,14 +16,28 @@ import (
 	"io"
 	"response"
 	"net/http"
-	"fmt"
+	"cast"
 )
 
-// Run streaming for given URL
-func UdpStream(w http.ResponseWriter, url conf.Url) {
+// Stream subscribed channel
+func ChannelStream(w http.ResponseWriter, src Source) {
+	ch := make(chan interface{})
+	src.Channel.Join(ch)
+	defer src.Channel.Leave(ch)
+	for {
+		payload := <-ch
+		var b []byte
+		b = payload.([]byte)
+		if _, err := w.Write(b); err != nil {
+			return
+		}
+	}
+}
+
+// Broadcaster for UDP stream
+func UdpChannelStream(ch cast.Channel, url conf.Url) {
 	c, err := GetStreamSource(url)
 	if err != nil {
-		response.ServerFail(w, fmt.Sprintf("Could not get UDP stream source %s", url.Source))
 		return
 	}
 	defer c.Close()
@@ -36,9 +50,7 @@ func UdpStream(w http.ResponseWriter, url conf.Url) {
 			return
 		}
 		if url.Source == localAddress {
-			if _, err := w.Write(b[:n]); err != nil {
-				return
-			}
+			ch.Send(b[:n]);
 		}
 	}
 }

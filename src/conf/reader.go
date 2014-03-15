@@ -110,3 +110,19 @@ func configValid(config UrlConfig) bool {
 	}
 	return true
 }
+
+func GetScheme(url string) string {
+	parsedUrl, err := netUrl.Parse(url)
+	if err == nil {
+		return parsedUrl.Scheme
+	}
+	return ""
+}
+
+func GetHost(url string) string {
+	parsedUrl, err := netUrl.Parse(url)
+	if err == nil {
+		return parsedUrl.Host
+	}
+	return ""
+}

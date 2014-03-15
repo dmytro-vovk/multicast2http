@@ -22,7 +22,7 @@ func TestCast(t *testing.T) {
 	wgAfter.Wait()
 }
 
-func client(c *caster, t *testing.T, wg1, wg2 *sync.WaitGroup) {
+func client(c *Caster, t *testing.T, wg1, wg2 *sync.WaitGroup) {
 	ch := make(chan interface{})
 	c.Join(ch)
 	wg1.Done()

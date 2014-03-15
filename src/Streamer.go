@@ -27,6 +27,7 @@ var (
 	enableWebControls  = flag.Bool("enable-web-controls", false, "Whether to enable controls via special paths")
 	urls conf.UrlConfig
 	statsChannel chan bool
+	Sources map[string]stream.Source
 )
 
 // Handler to initiate streaming (or not)
@@ -44,7 +45,7 @@ func urlHandler(w http.ResponseWriter, r *http.Request) {
 			parsedUrl, _ := netUrl.Parse(url.Source)
 			if parsedUrl.Scheme == "udp" {
 				url.Source = parsedUrl.Host
-				stream.UdpStream(w, url)
+				stream.ChannelStream(w, Sources[r.URL.Path])
 			} else if parsedUrl.Scheme == "http" {
 				stream.HttpStream(w, url)
 			} else {
@@ -152,6 +153,7 @@ func main() {
 	go statsCollector()
 	go osListener()
 	go hupListener()
+	Sources = stream.Subscribe(urls)
 	if *enableWebControls {
 		http.HandleFunc("/server-status", response.ShowStatus)
 		http.HandleFunc("/reload-config", reloadConfigs)
