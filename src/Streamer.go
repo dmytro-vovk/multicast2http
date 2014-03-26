@@ -149,7 +149,7 @@ func main() {
 	flag.Parse()
 	log.Printf("Process ID: %d", os.Getpid())
 	loadConfig()
-	statsChannel = make(chan bool, 10)
+	statsChannel = make(chan bool, 100)
 	go statsCollector()
 	go osListener()
 	go hupListener()

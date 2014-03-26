@@ -21,14 +21,12 @@ import (
 
 // Stream subscribed channel
 func ChannelStream(w http.ResponseWriter, src Source) {
-	ch := make(chan interface{})
+	ch := make(chan interface{}, )
 	src.Channel.Join(ch)
 	defer src.Channel.Leave(ch)
 	for {
 		payload := <-ch
-		var b []byte
-		b = payload.([]byte)
-		if _, err := w.Write(b); err != nil {
+		if _, err := w.Write(payload.([]byte)); err != nil {
 			return
 		}
 	}
@@ -41,15 +39,15 @@ func UdpChannelStream(ch cast.Channel, url conf.Url) {
 		return
 	}
 	defer c.Close()
-	b := make([]byte, conf.MaxMTU)
 	localAddress := c.LocalAddr().String()
-	for {
-		n, _, err := c.ReadFrom(b)
-		if err != nil {
-			log.Printf("Failed to read from UDP stream %s: %s", url.Source, err)
-			return
-		}
-		if url.Source == localAddress {
+	if url.Source == localAddress {
+		for {
+			b := make([]byte, conf.MaxMTU)
+			n, _, err := c.ReadFrom(b)
+			if err != nil {
+				log.Printf("Failed to read from UDP stream %s: %s", url.Source, err)
+				return
+			}
 			ch.Send(b[:n]);
 		}
 	}
