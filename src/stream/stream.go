@@ -19,14 +19,24 @@ import (
 	"cast"
 )
 
+var BufferSize = 10000
+
 // Stream subscribed channel
 func ChannelStream(w http.ResponseWriter, src Source) {
-	ch := make(chan interface{}, )
+	// Create buffer to enable pausing
+	ch := make(chan interface{}, BufferSize)
 	src.Channel.Join(ch)
 	defer src.Channel.Leave(ch)
+	var payload interface{}
 	for {
-		payload := <-ch
-		if _, err := w.Write(payload.([]byte)); err != nil {
+		select {
+		case payload = <-ch:
+		}
+		if payload != nil {
+			if _, err := w.Write(payload.([]byte)); err != nil {
+				return
+			}
+		} else {
 			return
 		}
 	}
@@ -109,3 +119,46 @@ func getSocketFile(address string) (*os.File, error) {
 	}
 	return os.NewFile(uintptr(s), "udp4:"+host+":"+port+"->"), nil
 }
+
+// Alternative broadcaster for UDP stream. Non-functional due to crosstalk of received UDP streams
+func UdpChannelStream0(ch cast.Channel, url conf.Url) {
+	host, _, err := net.SplitHostPort(url.Source)
+	group := net.ParseIP(host)
+	iface, err := net.InterfaceByName(url.Interface)
+	if err != nil {
+		log.Printf("Could not get interface by name: %s", err)
+	}
+	c, err := net.ListenPacket("udp4", url.Source)
+	if err != nil {
+		log.Printf("Could not create listening socket: %s", err)
+		return
+	}
+	defer c.Close()
+	p := ipv4.NewPacketConn(c)
+	groupAddr := &net.UDPAddr{IP: group}
+	if err := p.JoinGroup(iface, groupAddr); err != nil {
+		log.Printf("Could not join group: %s", err)
+		return
+	}
+	log.Printf("Joined group %s", groupAddr)
+	defer p.Close()
+	if err := p.SetControlMessage(ipv4.FlagDst, true); err != nil {
+		log.Printf("Could not set flag: %s", err)
+		return
+	}
+	b := make([]byte, conf.MaxMTU)
+	for {
+		n, cm, _, err := p.ReadFrom(b)
+		if err != nil {
+			log.Print("Could not read: %s", err)
+			return
+		}
+		log.Printf("%s", cm)
+		if cm.Dst.IsMulticast() {
+			if cm.Dst.Equal(group) {
+				ch.Send(b[:n]);
+			}
+		}
+	}
+}
+

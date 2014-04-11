@@ -8,6 +8,7 @@ import (
 
 type StatsType struct {
 	RunningStreams uint
+	BufferSize int
 }
 
 var (
@@ -41,6 +42,7 @@ func ShowStatus(w http.ResponseWriter, _ *http.Request) {
 	fmt.Fprintln(w, "<h1>Server Status</h1>")
 	fmt.Fprintf(w, "<p>Uptime: %s</p>", time.Since(startTime))
 	fmt.Fprintf(w, "<p>Clients: %d</p>", Stats.RunningStreams)
+	fmt.Fprintf(w, "<p>Pause buffer length: %d</p>", Stats.BufferSize)
 }
 
 func ConfigReloaded(w http.ResponseWriter) {

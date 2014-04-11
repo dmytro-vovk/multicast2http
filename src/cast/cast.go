@@ -32,6 +32,9 @@ func (this *Caster) broadcast(data interface{}) {
 		// Make sending data to members non-blocking
 		select {
 		case c <- data:
+		default:
+			close(c)
+			delete(this.members, c)
 		}
 	}
 }
