@@ -32,6 +32,8 @@ var (
 // Handler to initiate streaming (or not)
 func urlHandler(w http.ResponseWriter, r *http.Request) {
 	log.Printf("Connection from %s", r.RemoteAddr)
+	// Disable keep-alive
+	w.Header().Set("Connection", "close")
 	if url, ok := urls[r.URL.Path]; ok {
 		if canAccess(url, r.RemoteAddr) {
 			log.Printf("Serving source %s at %s", r.URL.Path, url.Source)
