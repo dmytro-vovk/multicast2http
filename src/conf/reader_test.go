@@ -4,8 +4,8 @@ import "testing"
 
 var (
 	nonExisting string = "nonexisting.json"
-	broken string      = "test/broken.json"
-	config1 string     = "test/test-sources-1.json"
+	broken      string = "test/broken.json"
+	config1     string = "test/test-sources-1.json"
 )
 
 func TestReadUrls(t *testing.T) {

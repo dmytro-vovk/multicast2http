@@ -1,58 +1,88 @@
-/**
- * @author Dmitry Vovk <dmitry.vovk@gmail.com>
- * @copyright 2014
- */
-package stream
+package hlstream
 
 import (
 	"code.google.com/p/go.net/ipv4"
 	"conf"
 	"errors"
-	"fmt"
-	"io"
+	"io/ioutil"
 	"log"
 	"net"
-	"net/http"
 	"os"
-	"response"
+	"os/exec"
 	"strconv"
+	"strings"
 	"syscall"
 )
 
-// Run streaming for given URL
-func UdpStream(w http.ResponseWriter, url conf.Url) {
-	c, err := GetStreamSource(url)
+var (
+	HLSDir, Ffmpeg string
+)
+
+const (
+	OPTIONS_FFMPEG = "-y -i - -threads 4 -c:a aac -ac 2 -strict -2 -c:v libx264 -vprofile baseline -x264opts level=41 "
+	PLAYLIST_FILE  = "/stream.m3u8"
+)
+
+func RunStreams(config conf.UrlConfig) {
+	for url, cfg := range config {
+		go streamer(url, cfg)
+	}
+}
+
+// Run single ffmpeg HLS stream
+func streamer(url string, cfg conf.Url) {
+	// Prepare output dir
+	destinationDir := getDir(url)
+	// Prepare ffmpeg
+	cmd := exec.Command(
+		Ffmpeg,
+		strings.Split(OPTIONS_FFMPEG+destinationDir+PLAYLIST_FILE, " ")...,
+	)
+	feed, _ := cmd.StdinPipe()
+	out, _ := cmd.StderrPipe()
+	err := cmd.Start()
 	if err != nil {
-		response.ServerFail(w, fmt.Sprintf("Could not get UDP stream source %s", url.Source))
+		errOut, _ := ioutil.ReadAll(out)
+		log.Printf("Ffmpeg start: %s:\n%s", err, string(errOut))
+	}
+	go func() {
+		err := cmd.Wait()
+		if err != nil {
+			errOut, _ := ioutil.ReadAll(out)
+			log.Printf("Ffmpeg stop: %s:\n%s", err, string(errOut))
+		}
+	}()
+	// Prepare the stream
+	c, err := GetStreamSource(cfg)
+	if err != nil {
 		return
 	}
 	defer c.Close()
-	b := make([]byte, conf.MaxMTU)
+	src, _, _ := net.SplitHostPort(cfg.Source)
 	localAddress := c.LocalAddr().String()
-	for {
-		n, _, err := c.ReadFrom(b)
-		if err != nil {
-			log.Printf("Failed to read from UDP stream %s: %s", url.Source, err)
-			return
-		}
-		if url.Source == localAddress {
-			if _, err := w.Write(b[:n]); err != nil {
+	if src == localAddress {
+		for {
+			b := make([]byte, conf.MaxMTU)
+			n, _, err := c.ReadFrom(b)
+			if err != nil {
+				log.Printf("Failed to read from UDP stream %s: %s", src, err)
 				return
 			}
+			m, err := feed.Write(b[:n])
+			log.Printf("Write %d bytes to %s", m, url)
 		}
 	}
 }
 
-// Perform actual unicast streaming
-func HttpStream(w http.ResponseWriter, url conf.Url) {
-	r, err := http.Get(url.Source)
-	if err != nil {
-		log.Printf("Failed to open HTTP stream %s: %s", url.Source, err)
-		response.NotFound(w)
-		return
+// Prepare full path for give URL and make sure dir exists
+func getDir(url string) string {
+	destinationDir := HLSDir + url
+	if _, err := os.Stat(destinationDir); os.IsNotExist(err) {
+		if err = os.MkdirAll(destinationDir, 0777); err != nil {
+			log.Fatalf("Could not create stream directory %s", destinationDir)
+		}
 	}
-	defer r.Body.Close()
-	io.Copy(w, r.Body)
+	return destinationDir
 }
 
 // Returns UDP Multicast packet connection to read incoming bytes from

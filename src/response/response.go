@@ -2,8 +2,8 @@ package response
 
 import (
 	"fmt"
-	"time"
 	"net/http"
+	"time"
 )
 
 type StatsType struct {
@@ -12,7 +12,7 @@ type StatsType struct {
 
 var (
 	startTime = time.Now()
-	Stats StatsType
+	Stats     StatsType
 )
 
 /**

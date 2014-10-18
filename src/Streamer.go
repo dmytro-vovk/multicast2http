@@ -5,32 +5,36 @@
 package main
 
 import (
-	"os/signal"
-	"log"
-	"os"
-	"syscall"
 	"conf"
-	"net/http"
+	"errors"
 	"flag"
+	hls "hlstream"
+	"log"
+	"net"
+	"net/http"
+	netUrl "net/url"
+	"os"
+	"os/signal"
+	"response"
 	"runtime"
 	"stream"
-	"response"
-	"net"
-	netUrl "net/url"
+	"syscall"
 )
 
 var (
-	urlsConfigPath     = flag.String("sources", "../config/sources.json", "File with URL to source mappings")
-	networksConfigPath = flag.String("networks", "../config/networks.json", "File with networks to sets mappings")
+	urlsConfigPath     = flag.String("sources", "config/sources.json", "File with URL to source mappings")
+	networksConfigPath = flag.String("networks", "config/networks.json", "File with networks to sets mappings")
 	listenOn           = flag.String("listen", ":7979", "Ip:port to listen for clients")
+	hlsDir             = flag.String("hls-dir", "", "Directory to store HLS streams")
+	ffmpeg             = flag.String("ffmpeg", "", "Path to ffmpeg executable")
 	fakeStream         = flag.String("fake-stream", "fake.ts", "Fake stream to return to non authorized clients")
 	enableWebControls  = flag.Bool("enable-web-controls", false, "Whether to enable controls via special paths")
-	urls conf.UrlConfig
-	statsChannel chan bool
+	urls               conf.UrlConfig
+	statsChannel       chan bool
 )
 
 // Handler to initiate streaming (or not)
-func urlHandler(w http.ResponseWriter, r *http.Request) {
+func udpUrlHandler(w http.ResponseWriter, r *http.Request) {
 	log.Printf("Connection from %s", r.RemoteAddr)
 	// Disable keep-alive
 	w.Header().Set("Connection", "close")
@@ -144,6 +148,42 @@ func statsCollector() {
 	}
 }
 
+// Check if HLS can be used
+func setupHLS() error {
+	// Supplied dir should not be empty
+	if *hlsDir == "" {
+		return errors.New("No HLS directory specified")
+	}
+	// Dir must exist
+	d, err := os.Stat(*hlsDir)
+	if os.IsNotExist(err) {
+		// Try to create it
+		if err = os.MkdirAll(*hlsDir, 0777); err != nil {
+			return errors.New("Directory for HLS does not exist and unable to create")
+		}
+		d, err = os.Stat(*hlsDir)
+	} else if err != nil {
+		return err
+	}
+	if !d.IsDir() {
+		return errors.New("HLS path is file, not directory")
+	}
+	_, err = os.Stat(*ffmpeg)
+	if os.IsNotExist(err) {
+		return errors.New("ffmpeg not found")
+	}
+	return nil
+}
+
+func hlsUrlHandler(w http.ResponseWriter, r *http.Request) {
+	// Track number of connected users
+	statsChannel <- true
+	defer func() {
+		statsChannel <- false
+	}()
+	http.ServeFile(w, r, *hlsDir+r.RequestURI)
+}
+
 // Main entry point
 func main() {
 	runtime.GOMAXPROCS(runtime.NumCPU())
@@ -158,7 +198,14 @@ func main() {
 		http.HandleFunc("/server-status", response.ShowStatus)
 		http.HandleFunc("/reload-config", reloadConfigs)
 	}
-	http.HandleFunc("/", urlHandler)
+	if err := setupHLS(); err == nil {
+		hls.HLSDir = *hlsDir
+		hls.Ffmpeg = *ffmpeg
+		hls.RunStreams(urls)
+		http.HandleFunc("/", hlsUrlHandler)
+	} else {
+		http.HandleFunc("/", udpUrlHandler)
+	}
 	log.Printf("Listening on %s", *listenOn)
 	log.Fatalf("%s", http.ListenAndServe(*listenOn, nil))
 }

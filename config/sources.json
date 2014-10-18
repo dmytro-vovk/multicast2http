@@ -1,22 +1,17 @@
 {
-	"/eurosport": {
-		"source": "http://91.196.148.6/eurosport",
-		"interface": "eth3.10",
-		"set": 1
-	},
 	"/ua": {
 		"source": "228.0.0.23:1234",
-		"interface": "eth3.366",
+		"interface": "eth0",
 		"set": 2
 	},
 	"/inter": {
 		"source":"228.0.0.4:1234",
-		"interface": "eth3.366",
+		"interface": "eth0",
 		"set": 2
 	},
 	"/eurosport2": {
 		"source":"234.1.20.5:1234",
-		"interface": "eth3.710",
+		"interface": "eth0",
 		"set": 2
 	}
 }

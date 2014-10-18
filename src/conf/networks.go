@@ -1,10 +1,10 @@
 package conf
 
 import (
-	"log"
-	"io/ioutil"
-	"errors"
 	"encoding/json"
+	"errors"
+	"io/ioutil"
+	"log"
 	"net"
 )
 
