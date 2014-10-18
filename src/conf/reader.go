@@ -18,7 +18,7 @@ type Url struct {
 	Source    string      `json:"source"`    // IP:port of stream source
 	Interface string      `json:"interface"` // NIC name
 	Set       uint        `json:"set"`       // Set id
-	Networks  []net.IPNet // Allowed networks (based on set values in networks config)
+	Networks  []net.IPNet `json:"-"`         // Allowed networks (based on set values in networks config)
 }
 
 type UrlConfig map[string]Url
