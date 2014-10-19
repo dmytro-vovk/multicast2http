@@ -19,7 +19,10 @@ var (
 )
 
 const (
-	OPTIONS_FFMPEG = "-y -i - -threads 4 -c:a aac -ac 2 -strict -2 -c:v libx264 -vprofile baseline -x264opts level=41 "
+	OPTIONS_FFMPEG = "-y -i - -threads 4 "
+	OPTIONS_AUDIO  = "-c:a aac -ac 2 -strict -2 "
+	OPTIONS_VIDEO  = "-c:v libx264 -vprofile baseline -x264opts level=41 "
+	OPTIONS_HLS    = "-hls_time 3 -hls_list_size 10 -hls_wrap 30 -start_number 1 -re -segment_list_flags +live "
 	PLAYLIST_FILE  = "/stream.m3u8"
 )
 
@@ -36,7 +39,7 @@ func streamer(url string, cfg conf.Url) {
 	// Prepare ffmpeg
 	cmd := exec.Command(
 		Ffmpeg,
-		strings.Split(OPTIONS_FFMPEG+destinationDir+PLAYLIST_FILE, " ")...,
+		strings.Split(OPTIONS_FFMPEG+OPTIONS_AUDIO+OPTIONS_VIDEO+OPTIONS_HLS+destinationDir+PLAYLIST_FILE, " ")...,
 	)
 	feed, _ := cmd.StdinPipe()
 	out, _ := cmd.StderrPipe()
@@ -55,21 +58,26 @@ func streamer(url string, cfg conf.Url) {
 	// Prepare the stream
 	c, err := GetStreamSource(cfg)
 	if err != nil {
+		log.Printf("Failed to get stream %s source: %s", cfg.Source, err)
 		return
 	}
 	defer c.Close()
 	src, _, _ := net.SplitHostPort(cfg.Source)
 	localAddress := c.LocalAddr().String()
-	if src == localAddress {
+	h, _, _ := net.SplitHostPort(localAddress)
+	if src == h {
+		b := make([]byte, conf.MaxMTU)
 		for {
-			b := make([]byte, conf.MaxMTU)
 			n, _, err := c.ReadFrom(b)
 			if err != nil {
 				log.Printf("Failed to read from UDP stream %s: %s", src, err)
 				return
 			}
-			m, err := feed.Write(b[:n])
-			log.Printf("Write %d bytes to %s", m, url)
+			_, err = feed.Write(b[:n])
+			if err != nil {
+				log.Printf("Got error during write: %s", err)
+				return
+			}
 		}
 	}
 }

@@ -181,6 +181,7 @@ func hlsUrlHandler(w http.ResponseWriter, r *http.Request) {
 	defer func() {
 		statsChannel <- false
 	}()
+	log.Printf("Serving file %s", *hlsDir+r.RequestURI)
 	http.ServeFile(w, r, *hlsDir+r.RequestURI)
 }
 
