@@ -10,6 +10,7 @@ import (
 	"io/ioutil"
 	"log"
 	"net"
+	netUrl "net/url"
 	"regexp"
 	"strconv"
 )
@@ -77,8 +78,13 @@ func configValid(config UrlConfig) bool {
 		log.Printf("Parsing %s", url.Source)
 		host, port, err := net.SplitHostPort(url.Source)
 		if err != nil {
-			log.Printf("Could not parse source ip:port: %s", url.Source)
-			return false
+			hostUrl, err := netUrl.Parse(url.Source)
+			var rawHost string
+			if err != nil {
+				log.Printf("Could not parse source ip:port: %s", rawHost)
+				return false
+			}
+			host, port, err = net.SplitHostPort(hostUrl.Host)
 		}
 		ipAddr := net.ParseIP(host)
 		if ipAddr == nil {
