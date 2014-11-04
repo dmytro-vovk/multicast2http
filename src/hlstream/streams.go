@@ -37,13 +37,13 @@ ffmpeg -threads 8 -f mpegts
 */
 
 const (
-	OPTIONS_FFMPEG = "-y -i - -threads 8 "
-	OPTIONS_AUDIO  = "-c:a aac -ac 2 -strict -2 "
-	OPTIONS_VIDEO  = "-c:v libx264 -vprofile baseline -x264opts level=41 "
-	OPTIONS_FLAGS  = "-flags -global_header -map 0 "
-	//OPTIONS_HLS    = "-hls_time 3 -hls_list_size 10 -hls_wrap 30 -start_number 1 -re -segment_list_flags +live "
-	//OPTIONS_HLS    = "-f segment -segment_time 10 -segment_list_size 10 -segment_list stream.m3u8 -segment_list_type m3u8 -segment_format mpegts stream%05d.ts"
-	//PLAYLIST_FILE  = "/stream.m3u8"
+	OPTIONS_FFMPEG = "-y -i - -threads 4 "
+	//OPTIONS_AUDIO  = "-c:a aac -ac 2 -strict -2 "
+	OPTIONS_AUDIO  = "-acodec copy "
+	//OPTIONS_VIDEO  = "-c:v libx264 -vprofile baseline -x264opts level=41 "
+	OPTIONS_VIDEO  = "-vcodec copy "
+	OPTIONS_HLS    = "-hls_time 2 -hls_list_size 5 -hls_wrap 10 -start_number 1 -re -segment_list_flags +live "
+	PLAYLIST_FILE  = "/stream.m3u8"
 )
 
 func RunStreams(config conf.UrlConfig) {
