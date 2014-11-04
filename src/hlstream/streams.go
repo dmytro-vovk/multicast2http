@@ -18,29 +18,80 @@ var (
 	HLSDir, Ffmpeg string
 )
 
+
+/*
+ffmpeg -threads 8 -f mpegts
+ -i udp://@234.26.7.1:1234
+ -re
+ -acodec libmp3lame
+ -b:a 96k
+ -vcodec libx264 -s 1280x720
+ -b:v 1280k
+ -flags -global_header -map 0
+ -f segment -segment_time 10 -segment_list_size 10 -segment_list pravdatyt.m3u8
+ -segment_list_type m3u8 -segment_format mpegts 720p%05d.ts
+
+
+/usr/bin/ffmpeg -y -i udp://@234.26.7.1:1234 -threads 8 -c:a aac -ac 2 -strict -2 -c:v libx264 -vprofile baseline -x264opts level=41 -flags -global_header -map 0 -f segment -segment_time 10 -segment_list_size 10 -segment_list stream.m3u8 -segment_list_type m3u8 -segment_format mpegts stream%05d.ts
+
+*/
+
 const (
-	OPTIONS_FFMPEG = "-y -i - -threads 4 "
+	OPTIONS_FFMPEG = "-y -i - -threads 8 "
 	OPTIONS_AUDIO  = "-c:a aac -ac 2 -strict -2 "
 	OPTIONS_VIDEO  = "-c:v libx264 -vprofile baseline -x264opts level=41 "
-	OPTIONS_HLS    = "-hls_time 3 -hls_list_size 10 -hls_wrap 30 -start_number 1 -re -segment_list_flags +live "
-	PLAYLIST_FILE  = "/stream.m3u8"
+	OPTIONS_FLAGS  = "-flags -global_header -map 0 "
+	//OPTIONS_HLS    = "-hls_time 3 -hls_list_size 10 -hls_wrap 30 -start_number 1 -re -segment_list_flags +live "
+	//OPTIONS_HLS    = "-f segment -segment_time 10 -segment_list_size 10 -segment_list stream.m3u8 -segment_list_type m3u8 -segment_format mpegts stream%05d.ts"
+	//PLAYLIST_FILE  = "/stream.m3u8"
 )
 
 func RunStreams(config conf.UrlConfig) {
 	for url, cfg := range config {
-		go streamer(url, cfg)
+		//go streamer(url, cfg)
+		go simpleStreamRunner(url, cfg)
 	}
+}
+
+func simpleStreamRunner(url string, cfg conf.Url) {
+	for {
+		simpleStreamer(url, cfg)
+	}
+}
+
+// Run ffmpeg that reads UDP by itself
+func simpleStreamer(url string, cfg conf.Url) {
+	cmd := exec.Command(
+		Ffmpeg,
+		strings.Split("-y -i udp://@"+cfg.Source+" -re -threads 8 -c:a aac -ac 2 -strict -2 -c:v libx264 -vprofile baseline -x264opts level=41 -flags -global_header -map 0 -f segment -segment_time 10 -segment_list_size 10 -segment_list stream.m3u8 -segment_list_type m3u8 -segment_format mpegts stream%05d.ts", " ")...,
+	)
+	cmd.Dir = getDir(url)
+	out, _ := cmd.StderrPipe()
+	err := cmd.Start()
+	if err != nil {
+		errOut, _ := ioutil.ReadAll(out)
+		log.Printf("Ffmpeg start: %s:\n%s", err, string(errOut))
+	}
+	log.Print("Ffmpeg started")
+	err = cmd.Wait()
+	if err != nil {
+		errOut, _ := ioutil.ReadAll(out)
+		log.Printf("Ffmpeg stop: %s:\n%s", err, string(errOut))
+	}
+	log.Print("Ffmpeg exited")
 }
 
 // Run single ffmpeg HLS stream
 func streamer(url string, cfg conf.Url) {
 	// Prepare output dir
 	destinationDir := getDir(url)
+	hls_options := "-f segment -segment_time 10 -segment_list_size 10 -segment_list stream.m3u8 -segment_list_type m3u8 -segment_format mpegts stream%05d.ts"
 	// Prepare ffmpeg
 	cmd := exec.Command(
 		Ffmpeg,
-		strings.Split(OPTIONS_FFMPEG+OPTIONS_AUDIO+OPTIONS_VIDEO+OPTIONS_HLS+destinationDir+PLAYLIST_FILE, " ")...,
+		strings.Split(OPTIONS_FFMPEG+OPTIONS_AUDIO+OPTIONS_VIDEO+OPTIONS_FLAGS+hls_options/*OPTIONS_HLS+destinationDir+PLAYLIST_FILE*/, " ")...,
 	)
+	cmd.Dir = destinationDir
 	feed, _ := cmd.StdinPipe()
 	out, _ := cmd.StderrPipe()
 	err := cmd.Start()
