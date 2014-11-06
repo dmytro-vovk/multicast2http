@@ -15,6 +15,7 @@ import (
 	netUrl "net/url"
 	"os"
 	"os/signal"
+	"path/filepath"
 	"response"
 	"runtime"
 	"stream"
@@ -26,7 +27,7 @@ var (
 	networksConfigPath = flag.String("networks", "config/networks.json", "File with networks to sets mappings")
 	listenOn           = flag.String("listen", ":7979", "Ip:port to listen for clients")
 	hlsDir             = flag.String("hls-dir", "", "Directory to store HLS streams")
-	ffmpeg             = flag.String("ffmpeg", "", "Path to ffmpeg executable")
+	coder              = flag.String("ffmpeg", "", "Path to ffmpeg executable")
 	fakeStream         = flag.String("fake-stream", "fake.ts", "Fake stream to return to non authorized clients")
 	enableWebControls  = flag.Bool("enable-web-controls", false, "Whether to enable controls via special paths")
 	urls               conf.UrlConfig
@@ -65,6 +66,27 @@ func udpUrlHandler(w http.ResponseWriter, r *http.Request) {
 		}
 	} else {
 		log.Printf("Source not found for URL %s", r.URL.Path)
+		response.NotFound(w)
+	}
+}
+
+func hlsUrlHandler(w http.ResponseWriter, r *http.Request) {
+	// Track number of connected users
+	statsChannel <- true
+	defer func() {
+		statsChannel <- false
+	}()
+	prefix := filepath.Dir(r.URL.Path)
+	if url, ok := urls[prefix]; ok {
+		if canAccess(url, r.RemoteAddr) {
+			host, _, _ := net.SplitHostPort(r.RemoteAddr)
+			log.Printf("Client %s requests file %s", host, r.RequestURI)
+			http.ServeFile(w, r, *hlsDir+r.RequestURI)
+		} else {
+			http.ServeFile(w, r, *fakeStream)
+		}
+	} else {
+		log.Printf("Source not found for URL prefix %s", prefix)
 		response.NotFound(w)
 	}
 }
@@ -168,21 +190,11 @@ func setupHLS() error {
 	if !d.IsDir() {
 		return errors.New("HLS path is file, not directory")
 	}
-	_, err = os.Stat(*ffmpeg)
+	_, err = os.Stat(*coder)
 	if os.IsNotExist(err) {
 		return errors.New("ffmpeg not found")
 	}
 	return nil
-}
-
-func hlsUrlHandler(w http.ResponseWriter, r *http.Request) {
-	// Track number of connected users
-	statsChannel <- true
-	defer func() {
-		statsChannel <- false
-	}()
-	log.Printf("Serving file %s", *hlsDir+r.RequestURI)
-	http.ServeFile(w, r, *hlsDir+r.RequestURI)
 }
 
 // Main entry point
@@ -201,7 +213,7 @@ func main() {
 	}
 	if err := setupHLS(); err == nil {
 		hls.HLSDir = *hlsDir
-		hls.Ffmpeg = *ffmpeg
+		hls.Coder = *coder
 		hls.RunStreams(urls)
 		http.HandleFunc("/", hlsUrlHandler)
 	} else {

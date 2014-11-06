@@ -1,54 +1,20 @@
 package hlstream
 
 import (
-	"code.google.com/p/go.net/ipv4"
+	"bytes"
 	"conf"
-	"errors"
-	"io/ioutil"
 	"log"
-	"net"
 	"os"
 	"os/exec"
-	"strconv"
 	"strings"
-	"syscall"
 )
 
 var (
-	HLSDir, Ffmpeg string
-)
-
-
-/*
-ffmpeg -threads 8 -f mpegts
- -i udp://@234.26.7.1:1234
- -re
- -acodec libmp3lame
- -b:a 96k
- -vcodec libx264 -s 1280x720
- -b:v 1280k
- -flags -global_header -map 0
- -f segment -segment_time 10 -segment_list_size 10 -segment_list pravdatyt.m3u8
- -segment_list_type m3u8 -segment_format mpegts 720p%05d.ts
-
-
-/usr/bin/ffmpeg -y -i udp://@234.26.7.1:1234 -threads 8 -c:a aac -ac 2 -strict -2 -c:v libx264 -vprofile baseline -x264opts level=41 -flags -global_header -map 0 -f segment -segment_time 10 -segment_list_size 10 -segment_list stream.m3u8 -segment_list_type m3u8 -segment_format mpegts stream%05d.ts
-
-*/
-
-const (
-	OPTIONS_FFMPEG = "-y -i - -threads 4 "
-	//OPTIONS_AUDIO  = "-c:a aac -ac 2 -strict -2 "
-	OPTIONS_AUDIO  = "-acodec copy "
-	//OPTIONS_VIDEO  = "-c:v libx264 -vprofile baseline -x264opts level=41 "
-	OPTIONS_VIDEO  = "-vcodec copy "
-	OPTIONS_HLS    = "-hls_time 2 -hls_list_size 5 -hls_wrap 10 -start_number 1 -re -segment_list_flags +live "
-	PLAYLIST_FILE  = "/stream.m3u8"
+	HLSDir, Coder string
 )
 
 func RunStreams(config conf.UrlConfig) {
 	for url, cfg := range config {
-		//go streamer(url, cfg)
 		go simpleStreamRunner(url, cfg)
 	}
 }
@@ -61,76 +27,21 @@ func simpleStreamRunner(url string, cfg conf.Url) {
 
 // Run ffmpeg that reads UDP by itself
 func simpleStreamer(url string, cfg conf.Url) {
-	cmd := exec.Command(
-		Ffmpeg,
-		strings.Split("-y -i udp://@"+cfg.Source+" -re -threads 8 -c:a aac -ac 2 -strict -2 -c:v libx264 -vprofile baseline -x264opts level=41 -flags -global_header -map 0 -f segment -segment_time 10 -segment_list_size 10 -segment_list stream.m3u8 -segment_list_type m3u8 -segment_format mpegts stream%05d.ts", " ")...,
-	)
+	argList := strings.Split("-i udp://@"+cfg.Source+"?fifo_size=1000000&overrun_nonfatal=1 -y -threads 8 -c:a aac -ac 2 -strict -2 -c:v libx264 -vprofile baseline -x264opts level=41 -flags -global_header -map 0 -hls_time 10 -hls_list_size 10 -hls_wrap 12 -start_number 1 stream.m3u8", " ")
+	cmd := exec.Command(Coder, argList...)
 	cmd.Dir = getDir(url)
-	out, _ := cmd.StderrPipe()
+	var errOut bytes.Buffer
+	cmd.Stderr = &errOut
 	err := cmd.Start()
 	if err != nil {
-		errOut, _ := ioutil.ReadAll(out)
-		log.Printf("Ffmpeg start: %s:\n%s", err, string(errOut))
+		log.Printf("Ffmpeg startup error: %s:\n%s", err, errOut.String())
 	}
-	log.Print("Ffmpeg started")
+	log.Printf("Ffmpeg started on source %s", cfg.Source)
 	err = cmd.Wait()
 	if err != nil {
-		errOut, _ := ioutil.ReadAll(out)
-		log.Printf("Ffmpeg stop: %s:\n%s", err, string(errOut))
+		log.Printf("Ffmpeg stoped with error: %s:\n%s", err, errOut.String())
 	}
-	log.Print("Ffmpeg exited")
-}
-
-// Run single ffmpeg HLS stream
-func streamer(url string, cfg conf.Url) {
-	// Prepare output dir
-	destinationDir := getDir(url)
-	hls_options := "-f segment -segment_time 10 -segment_list_size 10 -segment_list stream.m3u8 -segment_list_type m3u8 -segment_format mpegts stream%05d.ts"
-	// Prepare ffmpeg
-	cmd := exec.Command(
-		Ffmpeg,
-		strings.Split(OPTIONS_FFMPEG+OPTIONS_AUDIO+OPTIONS_VIDEO+OPTIONS_FLAGS+hls_options/*OPTIONS_HLS+destinationDir+PLAYLIST_FILE*/, " ")...,
-	)
-	cmd.Dir = destinationDir
-	feed, _ := cmd.StdinPipe()
-	out, _ := cmd.StderrPipe()
-	err := cmd.Start()
-	if err != nil {
-		errOut, _ := ioutil.ReadAll(out)
-		log.Printf("Ffmpeg start: %s:\n%s", err, string(errOut))
-	}
-	go func() {
-		err := cmd.Wait()
-		if err != nil {
-			errOut, _ := ioutil.ReadAll(out)
-			log.Printf("Ffmpeg stop: %s:\n%s", err, string(errOut))
-		}
-	}()
-	// Prepare the stream
-	c, err := GetStreamSource(cfg)
-	if err != nil {
-		log.Printf("Failed to get stream %s source: %s", cfg.Source, err)
-		return
-	}
-	defer c.Close()
-	src, _, _ := net.SplitHostPort(cfg.Source)
-	localAddress := c.LocalAddr().String()
-	h, _, _ := net.SplitHostPort(localAddress)
-	if src == h {
-		b := make([]byte, conf.MaxMTU)
-		for {
-			n, _, err := c.ReadFrom(b)
-			if err != nil {
-				log.Printf("Failed to read from UDP stream %s: %s", src, err)
-				return
-			}
-			_, err = feed.Write(b[:n])
-			if err != nil {
-				log.Printf("Got error during write: %s", err)
-				return
-			}
-		}
-	}
+	log.Printf("Ffmpeg exited (source %s)", cfg.Source)
 }
 
 // Prepare full path for give URL and make sure dir exists
@@ -142,49 +53,4 @@ func getDir(url string) string {
 		}
 	}
 	return destinationDir
-}
-
-// Returns UDP Multicast packet connection to read incoming bytes from
-func GetStreamSource(url conf.Url) (net.PacketConn, error) {
-	f, err := getSocketFile(url.Source)
-	if err != nil {
-		return nil, err
-	}
-	c, err := net.FilePacketConn(f)
-	if err != nil {
-		log.Printf("Failed to get packet file connection: %s", err)
-		return nil, err
-	}
-	f.Close()
-	host, _, err := net.SplitHostPort(url.Source)
-	ipAddr := net.ParseIP(host).To4()
-	if err != nil {
-		log.Printf("Cannot resolve address %s", url.Source)
-		return nil, err
-	}
-	iface, _ := net.InterfaceByName(url.Interface)
-	if err := ipv4.NewPacketConn(c).JoinGroup(iface, &net.UDPAddr{IP: net.IPv4(ipAddr[0], ipAddr[1], ipAddr[2], ipAddr[3])}); err != nil {
-		log.Printf("Failed to join mulitcast group: %s", err)
-		return nil, err
-	}
-	return c, nil
-}
-
-// Returns bound UDP socket
-func getSocketFile(address string) (*os.File, error) {
-	host, port, err := net.SplitHostPort(address)
-	ipAddr := net.ParseIP(host).To4()
-	dPort, _ := strconv.Atoi(port)
-	s, err := syscall.Socket(syscall.AF_INET, syscall.SOCK_DGRAM, 0)
-	if err != nil {
-		log.Printf("Syscall.Socket: %s", err)
-		return nil, errors.New("Cannot create socket")
-	}
-	syscall.SetsockoptInt(s, syscall.SOL_SOCKET, syscall.SO_REUSEADDR, 1)
-	lsa := &syscall.SockaddrInet4{Port: dPort, Addr: [4]byte{ipAddr[0], ipAddr[1], ipAddr[2], ipAddr[3]}}
-	if err := syscall.Bind(s, lsa); err != nil {
-		log.Printf("Syscall.Bind: %s", err)
-		return nil, errors.New("Cannot bind socket")
-	}
-	return os.NewFile(uintptr(s), "udp4:"+host+":"+port+"->"), nil
 }
