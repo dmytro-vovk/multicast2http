@@ -17,6 +17,7 @@ import (
 
 type Url struct {
 	Source      string      `json:"source"`      // IP:port of stream source
+	FfmpegArgs  string      `json:"ffmpeg-args"` // ...or string or arguments to pass to ffmpeg
 	Interface   string      `json:"interface"`   // NIC name
 	Deinterlace bool        `json:"deinterlace"` // Whether to deinterlace (valid only for HLS)
 	CopyStream  bool        `json:"copy-stream"` // Do not transcode (valid only for HLS)
@@ -77,30 +78,36 @@ func configValid(config UrlConfig) bool {
 			log.Printf("Invalid path found: %s", path)
 			return false
 		}
-		log.Printf("Parsing %s", url.Source)
-		host, port, err := net.SplitHostPort(url.Source)
-		if err != nil {
-			hostUrl, err := netUrl.Parse(url.Source)
-			var rawHost string
+		if url.FfmpegArgs != "" && url.Source != "" {
+			log.Printf("In source %s use either source or ffmpeg-args, but not both")
+			return false
+		}
+		if url.FfmpegArgs == "" {
+			log.Printf("Parsing %s", url.Source)
+			host, port, err := net.SplitHostPort(url.Source)
 			if err != nil {
-				log.Printf("Could not parse source ip:port: %s", rawHost)
+				hostUrl, err := netUrl.Parse(url.Source)
+				var rawHost string
+				if err != nil {
+					log.Printf("Could not parse source ip:port: %s", rawHost)
+					return false
+				}
+				host, port, err = net.SplitHostPort(hostUrl.Host)
+			}
+			ipAddr := net.ParseIP(host)
+			if ipAddr == nil {
+				log.Printf("Invalid ip address in source %s: %s", path, host)
 				return false
 			}
-			host, port, err = net.SplitHostPort(hostUrl.Host)
-		}
-		ipAddr := net.ParseIP(host)
-		if ipAddr == nil {
-			log.Printf("Invalid ip address in source %s: %s", path, host)
-			return false
-		}
-		dPort, err := strconv.Atoi(port)
-		if dPort == 0 || err != nil {
-			log.Printf("Invalid port in source %s: %s", path, port)
-			return false
-		}
-		if _, ok := ifaceNames[url.Interface]; !ok {
-			log.Printf("Interface for source %s not found: %s", path, url.Interface)
-			return false
+			dPort, err := strconv.Atoi(port)
+			if dPort == 0 || err != nil {
+				log.Printf("Invalid port in source %s: %s", path, port)
+				return false
+			}
+			if _, ok := ifaceNames[url.Interface]; !ok {
+				log.Printf("Interface for source %s not found: %s", path, url.Interface)
+				return false
+			}
 		}
 	}
 	return true

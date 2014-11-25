@@ -8,6 +8,7 @@ import (
 	"conf"
 	"errors"
 	"flag"
+	"hlstream"
 	hls "hlstream"
 	"log"
 	"net"
@@ -19,6 +20,7 @@ import (
 	"response"
 	"runtime"
 	"stream"
+	"strings"
 	"syscall"
 )
 
@@ -71,6 +73,11 @@ func udpUrlHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func hlsUrlHandler(w http.ResponseWriter, r *http.Request) {
+	// Redirect to m3u8 file
+	if !strings.HasSuffix(r.URL.Path, "/stream.m3u8") {
+		http.Redirect(w, r, r.URL.Path+"/stream.m3u8", http.StatusFound)
+		return
+	}
 	// Track number of connected users
 	statsChannel <- true
 	defer func() {
@@ -108,6 +115,7 @@ func osListener() {
 	osExitSignals := make(chan os.Signal, 1)
 	signal.Notify(osExitSignals, os.Interrupt, os.Kill)
 	signal := <-osExitSignals
+	hlstream.StopStreams()
 	log.Fatalf("Exiting due to %s", signal)
 }
 
