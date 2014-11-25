@@ -74,7 +74,7 @@ func udpUrlHandler(w http.ResponseWriter, r *http.Request) {
 
 func hlsUrlHandler(w http.ResponseWriter, r *http.Request) {
 	// Redirect to m3u8 file
-	if !strings.HasSuffix(r.URL.Path, "/stream.m3u8") {
+	if !strings.HasSuffix(r.URL.Path, ".m3u8") && !strings.HasSuffix(r.URL.Path, ".ts") {
 		http.Redirect(w, r, r.URL.Path+"/stream.m3u8", http.StatusFound)
 		return
 	}
