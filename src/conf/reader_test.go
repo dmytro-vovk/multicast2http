@@ -9,15 +9,15 @@ var (
 )
 
 func TestReadUrls(t *testing.T) {
-	_, err := ReadUrls(&nonExisting)
+	_, err := ReadUrls(nonExisting)
 	if err == nil {
 		t.Error("Failed to report non-existing config file")
 	}
-	_, err = ReadUrls(&broken)
+	_, err = ReadUrls(broken)
 	if err == nil {
 		t.Error("Failed to detect broken JSON")
 	}
-	s1, err := ReadUrls(&config1)
+	s1, err := ReadUrls(config1)
 	if err != nil {
 		t.Error("Failed to read valid config file")
 	}

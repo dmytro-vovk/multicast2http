@@ -1,4 +1,4 @@
-package hlstream
+package hls
 
 import (
 	"bytes"
@@ -23,7 +23,13 @@ func RunStreams(config conf.UrlConfig) {
 
 func StopStreams() {
 	for _, cmd := range streams {
-		cmd.Process.Kill()
+		log.Print("Stopping ffmpeg...")
+		err := cmd.Process.Kill()
+		if err != nil {
+			log.Printf("Failed to stop ffmpeg")
+		} else {
+			log.Printf("Stopped.")
+		}
 	}
 }
 

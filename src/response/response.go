@@ -1,18 +1,14 @@
 package response
 
 import (
+	"conf"
 	"fmt"
 	"net/http"
 	"time"
 )
 
-type StatsType struct {
-	RunningStreams uint
-}
-
 var (
 	startTime = time.Now()
-	Stats     StatsType
 )
 
 /**
@@ -40,7 +36,7 @@ func ShowStatus(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	fmt.Fprintln(w, "<h1>Server Status</h1>")
 	fmt.Fprintf(w, "<p>Uptime: %s</p>", time.Since(startTime))
-	fmt.Fprintf(w, "<p>Clients: %d</p>", Stats.RunningStreams)
+	fmt.Fprintf(w, "<p>Clients: %d</p>", conf.Stats.RunningStreams)
 }
 
 func ConfigReloaded(w http.ResponseWriter) {

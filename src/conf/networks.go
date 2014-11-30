@@ -20,9 +20,9 @@ type NetworkConfigRecord struct {
 type NetworkConfig map[string]NetworkConfigRecord
 
 // Read and parse JSON networks config
-func ReadNetworks(fileName *string) (NetworkConfig, error) {
+func ReadNetworks(fileName string) (NetworkConfig, error) {
 	log.Print("Reading config")
-	file, err := ioutil.ReadFile(*fileName)
+	file, err := ioutil.ReadFile(fileName)
 	if err != nil {
 		log.Printf("Could not read config: %s", err)
 		return NetworkConfig{}, errors.New("Could not read config")

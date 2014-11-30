@@ -34,9 +34,9 @@ const (
 )
 
 // Read and parse JSON sources config
-func ReadUrls(fileName *string) (UrlConfig, error) {
+func ReadUrls(fileName string) (UrlConfig, error) {
 	log.Print("Reading config")
-	file, err := ioutil.ReadFile(*fileName)
+	file, err := ioutil.ReadFile(fileName)
 	if err != nil {
 		log.Printf("Could not read config: %s", err)
 		return UrlConfig{}, errors.New("Could not read config")
@@ -111,4 +111,42 @@ func configValid(config UrlConfig) bool {
 		}
 	}
 	return true
+}
+
+func RereadConfigs() {
+	LoadConfig(urlsConfigPath, networksConfigPath)
+}
+
+// Reread sources config
+func LoadConfig(urlsConfigPath, networksConfigPath string) {
+	urlsConfigPath, networksConfigPath = urlsConfigPath, networksConfigPath
+	_urls, err := ReadUrls(urlsConfigPath)
+	if err == nil {
+		_nets, err := ReadNetworks(networksConfigPath)
+		if err == nil {
+			Urls = mergeConfigs(_urls, _nets)
+		} else {
+			log.Print("Network config not loaded")
+		}
+	} else {
+		log.Print("Config not loaded")
+	}
+}
+
+// Populate sources with allowed networks based on sets
+func mergeConfigs(_urls UrlConfig, _nets NetworkConfig) UrlConfig {
+	// Go over sources
+	for u, _url := range _urls {
+		// Go over networks
+		for _, _net := range _nets {
+			// Go over sets
+			for _, set := range _net.Sets {
+				if _url.Set == set {
+					_url.Networks = append(_url.Networks, _net.Network)
+				}
+			}
+		}
+		_urls[u] = _url
+	}
+	return _urls
 }
