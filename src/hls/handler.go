@@ -9,6 +9,7 @@ import (
 	"path/filepath"
 	"response"
 	"strings"
+	"time"
 )
 
 func UrlHandler(w http.ResponseWriter, r *http.Request) {
@@ -20,6 +21,7 @@ func UrlHandler(w http.ResponseWriter, r *http.Request) {
 	// Track number of connected users
 	conf.StatsChannel <- true
 	defer func() {
+		time.Sleep(time.Duration(conf.HlsChunkLen) * time.Second)
 		conf.StatsChannel <- false
 	}()
 	prefix := filepath.Dir(r.URL.Path)

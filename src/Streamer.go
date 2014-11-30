@@ -25,6 +25,7 @@ var (
 	coder              = flag.String("ffmpeg", "", "Path to ffmpeg executable")
 	fakeStream         = flag.String("fake-stream", "fake.ts", "Fake stream to return to non authorized clients")
 	enableWebControls  = flag.Bool("enable-web-controls", false, "Whether to enable controls via special paths")
+	hlsChunkLen        = flag.Int("hls-chunk-len", 10, "Length of HLS chunk in seconds")
 )
 
 func init() {
@@ -33,6 +34,7 @@ func init() {
 	log.Printf("Process ID: %d", os.Getpid())
 	conf.LoadConfig(*urlsConfigPath, *networksConfigPath)
 	conf.FakeStream = *fakeStream
+	conf.HlsChunkLen = *hlsChunkLen
 }
 
 // Main entry point
