@@ -26,6 +26,7 @@ var (
 	fakeStream         = flag.String("fake-stream", "fake.ts", "Fake stream to return to non authorized clients")
 	enableWebControls  = flag.Bool("enable-web-controls", false, "Whether to enable controls via special paths")
 	hlsChunkLen        = flag.Int("hls-chunk-len", 10, "Length of HLS chunk in seconds")
+	allowDomain        = flag.String("allow-domain", "localhost", "Allowed domain for cross domain policy")
 )
 
 func init() {
@@ -35,6 +36,7 @@ func init() {
 	conf.LoadConfig(*urlsConfigPath, *networksConfigPath)
 	conf.FakeStream = *fakeStream
 	conf.HlsChunkLen = *hlsChunkLen
+	conf.AllowDomain = *allowDomain
 }
 
 // Main entry point
@@ -45,6 +47,8 @@ func main() {
 	}
 	if err := hls.SetupHLS(*hlsDir, *coder); err == nil {
 		hls.RunStreams(conf.Urls)
+		http.HandleFunc("/channels", hls.ChannelsListHandler)
+		http.HandleFunc("/crossdomain.xml", hls.CrossDomainXmlHandler)
 		http.HandleFunc("/", hls.UrlHandler)
 	} else {
 		http.HandleFunc("/", stream.UrlHandler)

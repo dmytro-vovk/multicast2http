@@ -3,6 +3,7 @@ package hls
 import (
 	"auth"
 	"conf"
+	"fmt"
 	"log"
 	"net"
 	"net/http"
@@ -37,4 +38,18 @@ func UrlHandler(w http.ResponseWriter, r *http.Request) {
 		log.Printf("Source not found for URL prefix %s", prefix)
 		response.NotFound(w)
 	}
+}
+
+func ChannelsListHandler(w http.ResponseWriter, r *http.Request) {
+	// TODO output json list of available streams
+}
+
+func CrossDomainXmlHandler(w http.ResponseWriter, _ *http.Request) {
+	xDomain := `<?xml version="1.0"?>
+<!DOCTYPE cross-domain-policy SYSTEM "http://www.macromedia.com/xml/dtds/cross-domain-policy.dtd">
+<cross-domain-policy>
+<allow-access-from domain="` + conf.AllowDomain + `" />
+</cross-domain-policy>`
+	w.Header().Set("Content-Type", "text/xml")
+	fmt.Fprintf(w, xDomain)
 }

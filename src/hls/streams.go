@@ -13,12 +13,14 @@ import (
 var (
 	HLSDir, Coder string
 	streams       map[string]*exec.Cmd
+	streamsList   []string
 )
 
 func RunStreams(config conf.UrlConfig) {
 	streams = make(map[string]*exec.Cmd, len(config))
 	for url, cfg := range config {
 		go simpleStreamRunner(url, cfg)
+		streamsList = append(streamsList, url)
 	}
 }
 
