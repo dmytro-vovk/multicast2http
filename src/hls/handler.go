@@ -23,17 +23,17 @@ func UrlHandler(w http.ResponseWriter, r *http.Request) {
 	// Track number of connected users
 	conf.StatsChannel <- true
 	defer func() {
-		time.Sleep(time.Duration(conf.HlsChunkLen) * time.Second)
+		time.Sleep(time.Duration(conf.Conf().Hls.ChunkLen) * time.Second)
 		conf.StatsChannel <- false
 	}()
 	prefix := filepath.Dir(r.URL.Path)
-	if url, ok := conf.Urls[prefix]; ok {
+	if url, ok := conf.Conf().Urls[prefix]; ok {
 		if auth.CanAccess(url, r.RemoteAddr) {
 			host, _, _ := net.SplitHostPort(r.RemoteAddr)
 			log.Printf("Client %s requests file %s", host, r.RequestURI)
 			http.ServeFile(w, r, HLSDir+r.RequestURI)
 		} else {
-			http.ServeFile(w, r, conf.FakeStream)
+			http.ServeFile(w, r, conf.Conf().FakeStream)
 		}
 	} else {
 		log.Printf("Source not found for URL prefix %s", prefix)
@@ -52,7 +52,7 @@ func CrossDomainXmlHandler(w http.ResponseWriter, _ *http.Request) {
 	xDomain := `<?xml version="1.0"?>
 <!DOCTYPE cross-domain-policy SYSTEM "http://www.macromedia.com/xml/dtds/cross-domain-policy.dtd">
 <cross-domain-policy>
-<allow-access-from domain="` + conf.AllowDomain + `" />
+<allow-access-from domain="` + conf.Conf().Web.AllowOrigin + `" />
 </cross-domain-policy>`
 	w.Header().Set("Content-Type", "text/xml")
 	fmt.Fprintf(w, xDomain)

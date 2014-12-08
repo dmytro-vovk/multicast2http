@@ -14,7 +14,7 @@ func UrlHandler(w http.ResponseWriter, r *http.Request) {
 	log.Printf("Connection from %s", r.RemoteAddr)
 	// Disable keep-alive
 	w.Header().Set("Connection", "close")
-	if url, ok := conf.Urls[r.URL.Path]; ok {
+	if url, ok := conf.Conf().Urls[r.URL.Path]; ok {
 		if auth.CanAccess(url, r.RemoteAddr) {
 			log.Printf("Serving source %s at %s", r.URL.Path, url.Source)
 			// Track number of connected users
@@ -37,7 +37,7 @@ func UrlHandler(w http.ResponseWriter, r *http.Request) {
 			log.Printf("Stream ended")
 		} else {
 			log.Printf("User at %s cannot access %s", r.RemoteAddr, url.Source)
-			http.ServeFile(w, r, conf.FakeStream)
+			http.ServeFile(w, r, conf.Conf().FakeStream)
 		}
 	} else {
 		log.Printf("Source not found for URL %s", r.URL.Path)

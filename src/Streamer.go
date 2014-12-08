@@ -35,7 +35,7 @@ func main() {
 		http.HandleFunc("/reload-config", server.ReloadConfigs)
 	}
 	if err := hls.SetupHLS(conf.Conf().Hls.Dir, conf.Conf().Hls.Ffmpeg); err == nil {
-		hls.RunStreams(conf.Urls)
+		hls.RunStreams(conf.Conf().Urls)
 		http.HandleFunc("/channels.json", hls.ChannelsListHandler)
 		http.HandleFunc("/crossdomain.xml", hls.CrossDomainXmlHandler)
 		http.HandleFunc("/", hls.UrlHandler)

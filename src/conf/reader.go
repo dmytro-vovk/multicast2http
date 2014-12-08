@@ -33,7 +33,7 @@ type webConfig struct {
 type hlsConfig struct {
 	Dir      string `json:"dir"`
 	Ffmpeg   string `json:"ffmpeg"`
-	ChunkLen uint   `json:"chunk-len"`
+	ChunkLen int    `json:"chunk-len"`
 }
 
 type configType struct {
@@ -43,6 +43,7 @@ type configType struct {
 	FakeStream string    `json:"fake-stream"`
 	Web        webConfig `json:"web"`
 	Hls        hlsConfig `json:"hls"`
+	Urls       UrlConfig
 }
 
 type UrlConfig map[string]Url
@@ -158,13 +159,12 @@ func LoadConfig(configFile string) {
 	}
 	configFileName = configFile
 	config = conf
-	urlsConfigPath, networksConfigPath = urlsConfigPath, networksConfigPath
 	_urls, err := ReadUrls(config.Sources)
 	if err == nil {
 		log.Print("Reading networks from " + config.Networks)
 		_nets, err := ReadNetworks(config.Networks)
 		if err == nil {
-			Urls = mergeConfigs(_urls, _nets)
+			config.Urls = mergeConfigs(_urls, _nets)
 		} else {
 			log.Print("Networks not loaded")
 		}

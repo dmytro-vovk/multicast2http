@@ -45,7 +45,7 @@ func simpleStreamRunner(url string, cfg conf.Url) {
 // Run ffmpeg that reads UDP by itself
 func simpleStreamer(url string, cfg conf.Url) {
 	var args string
-	chunkLen := strconv.Itoa(conf.HlsChunkLen)
+	chunkLen := strconv.Itoa(conf.Conf().Hls.ChunkLen)
 	if cfg.FfmpegArgs != "" {
 		args = cfg.FfmpegArgs
 	} else if cfg.CopyStream {
