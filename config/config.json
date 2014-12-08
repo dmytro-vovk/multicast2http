@@ -1,0 +1,15 @@
+{
+  "sources": "config/sources.json",
+  "networks": "config/networks.json",
+  "listen": "94.158.80.123:88",
+  "fake-stream": "fake.ts",
+  "web": {
+    "enable-controls": false,
+    "allow-origin": "*"
+  },
+  "hls": {
+    "dir": "/var/hls",
+    "ffmpeg": "/usr/bin/ffmpeg",
+    "chunk-len": 10
+  }
+}

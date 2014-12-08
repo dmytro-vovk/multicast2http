@@ -18,42 +18,30 @@ import (
 )
 
 var (
-	urlsConfigPath     = flag.String("sources", "config/sources.json", "File with URL to source mappings")
-	networksConfigPath = flag.String("networks", "config/networks.json", "File with networks to sets mappings")
-	listenOn           = flag.String("listen", ":7979", "Ip:port to listen for clients")
-	hlsDir             = flag.String("hls-dir", "", "Directory to store HLS streams")
-	coder              = flag.String("ffmpeg", "", "Path to ffmpeg executable")
-	fakeStream         = flag.String("fake-stream", "fake.ts", "Fake stream to return to non authorized clients")
-	enableWebControls  = flag.Bool("enable-web-controls", false, "Whether to enable controls via special paths")
-	hlsChunkLen        = flag.Int("hls-chunk-len", 10, "Length of HLS chunk in seconds")
-	allowDomain        = flag.String("allow-domain", "localhost", "Allowed domain for cross domain policy")
+	configFile = flag.String("config", "config/config.json", "Path to config file")
 )
 
 func init() {
 	runtime.GOMAXPROCS(runtime.NumCPU())
 	flag.Parse()
 	log.Printf("Process ID: %d", os.Getpid())
-	conf.LoadConfig(*urlsConfigPath, *networksConfigPath)
-	conf.FakeStream = *fakeStream
-	conf.HlsChunkLen = *hlsChunkLen
-	conf.AllowDomain = *allowDomain
+	conf.LoadConfig(*configFile)
 }
 
 // Main entry point
 func main() {
-	if *enableWebControls {
+	if conf.Conf().Web.EnableControls {
 		http.HandleFunc("/server-status", response.ShowStatus)
 		http.HandleFunc("/reload-config", server.ReloadConfigs)
 	}
-	if err := hls.SetupHLS(*hlsDir, *coder); err == nil {
+	if err := hls.SetupHLS(conf.Conf().Hls.Dir, conf.Conf().Hls.Ffmpeg); err == nil {
 		hls.RunStreams(conf.Urls)
-		http.HandleFunc("/channels", hls.ChannelsListHandler)
+		http.HandleFunc("/channels.json", hls.ChannelsListHandler)
 		http.HandleFunc("/crossdomain.xml", hls.CrossDomainXmlHandler)
 		http.HandleFunc("/", hls.UrlHandler)
 	} else {
 		http.HandleFunc("/", stream.UrlHandler)
 	}
-	http.HandleFunc("/streams.json", server.StreamList)
-	log.Printf("Listening on %s", *listenOn)
-	log.Fatalf("%s", http.ListenAndServe(*listenOn, nil))
+	log.Printf("Listening on %s", conf.Conf().Listen)
+	log.Fatalf("%s", http.ListenAndServe(conf.Conf().Listen, nil))
 }

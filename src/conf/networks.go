@@ -21,19 +21,18 @@ type NetworkConfig map[string]NetworkConfigRecord
 
 // Read and parse JSON networks config
 func ReadNetworks(fileName string) (NetworkConfig, error) {
-	log.Print("Reading config")
 	file, err := ioutil.ReadFile(fileName)
 	if err != nil {
-		log.Printf("Could not read config: %s", err)
+		log.Printf("Could not read networks: %s", err)
 		return NetworkConfig{}, errors.New("Could not read config")
 	}
 	var config RawNetworkConfig
 	err = json.Unmarshal(file, &config)
 	if err != nil {
-		log.Printf("Could not parse config: %s", err)
+		log.Printf("Could not parse networks: %s", err)
 		return NetworkConfig{}, errors.New("Could not parse config")
 	}
-	log.Printf("Read %d records", len(config))
+	log.Printf("Found %d records", len(config))
 	if cfg, result := networkConfigValid(config); result {
 		return cfg, nil
 	} else {

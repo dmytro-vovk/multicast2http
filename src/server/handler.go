@@ -35,10 +35,6 @@ func hupListener() {
 	}
 }
 
-func StreamList(w http.ResponseWriter, r *http.Request) {
-	// TODO
-}
-
 func ReloadConfigs(w http.ResponseWriter, _ *http.Request) {
 	conf.RereadConfigs()
 	response.ConfigReloaded(w)

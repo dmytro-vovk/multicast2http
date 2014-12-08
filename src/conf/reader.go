@@ -25,29 +25,57 @@ type Url struct {
 	Networks    []net.IPNet `json:"-"`           // Allowed networks (based on set values in networks config)
 }
 
+type webConfig struct {
+	EnableControls bool   `json:"enable-controls"`
+	AllowOrigin    string `json:"allow-origin"`
+}
+
+type hlsConfig struct {
+	Dir      string `json:"dir"`
+	Ffmpeg   string `json:"ffmpeg"`
+	ChunkLen uint   `json:"chunk-len"`
+}
+
+type configType struct {
+	Sources    string    `json:"sources"`
+	Networks   string    `json:"networks"`
+	Listen     string    `json:"listen"`
+	FakeStream string    `json:"fake-stream"`
+	Web        webConfig `json:"web"`
+	Hls        hlsConfig `json:"hls"`
+}
+
 type UrlConfig map[string]Url
 
-var MaxMTU int = 1500
+var (
+	MaxMTU         int = 1500
+	config         configType
+	configFileName string
+)
 
 const (
 	VALID_PATH = `^/[a-z0-9_-]+$`
 )
 
+func Conf() configType {
+	return config
+}
+
 // Read and parse JSON sources config
 func ReadUrls(fileName string) (UrlConfig, error) {
-	log.Print("Reading config")
+	log.Print("Reading sources from " + fileName)
 	file, err := ioutil.ReadFile(fileName)
 	if err != nil {
-		log.Printf("Could not read config: %s", err)
+		log.Printf("Could not read sources: %s", err)
 		return UrlConfig{}, errors.New("Could not read config")
 	}
 	var config UrlConfig
 	err = json.Unmarshal(file, &config)
 	if err != nil {
-		log.Printf("Could not parse config: %s", err)
+		log.Printf("Could not parse sources: %s", err)
 		return UrlConfig{}, errors.New("Could not parse config")
 	}
-	log.Printf("Read %d records", len(config))
+	log.Printf("Found %d records", len(config))
 	if configValid(config) {
 		return config, nil
 	} else {
@@ -114,22 +142,34 @@ func configValid(config UrlConfig) bool {
 }
 
 func RereadConfigs() {
-	LoadConfig(urlsConfigPath, networksConfigPath)
+	LoadConfig(configFileName)
 }
 
 // Reread sources config
-func LoadConfig(urlsConfigPath, networksConfigPath string) {
-	urlsConfigPath, networksConfigPath = urlsConfigPath, networksConfigPath
-	_urls, err := ReadUrls(urlsConfigPath)
+func LoadConfig(configFile string) {
+	var conf configType
+	log.Print("Reading config " + configFile)
+	file, err := ioutil.ReadFile(configFile)
 	if err == nil {
-		_nets, err := ReadNetworks(networksConfigPath)
+		err = json.Unmarshal(file, &conf)
+	}
+	if err != nil {
+		log.Fatal(err)
+	}
+	configFileName = configFile
+	config = conf
+	urlsConfigPath, networksConfigPath = urlsConfigPath, networksConfigPath
+	_urls, err := ReadUrls(config.Sources)
+	if err == nil {
+		log.Print("Reading networks from " + config.Networks)
+		_nets, err := ReadNetworks(config.Networks)
 		if err == nil {
 			Urls = mergeConfigs(_urls, _nets)
 		} else {
-			log.Print("Network config not loaded")
+			log.Print("Networks not loaded")
 		}
 	} else {
-		log.Print("Config not loaded")
+		log.Print("Sources not loaded")
 	}
 }
 
