@@ -52,10 +52,8 @@ func simpleStreamer(url string, cfg conf.Url) {
 		args = "-i udp://@" + cfg.Source + "?fifo_size=1000000&overrun_nonfatal=1 -y -threads 8 -c:a copy -c:v copy -flags -global_header -map 0 -hls_time " + chunkLen + " -hls_list_size 10 -hls_wrap 12 -start_number 1 stream.m3u8"
 	} else {
 		if cfg.Deinterlace {
-			//args = "-i udp://@" + cfg.Source + "?fifo_size=1000000&overrun_nonfatal=1 -y -threads 8 -c:a aac -ac 2 -strict -2 -c:v libx264 -vprofile baseline -x264opts level=41 -vf \"yadif=0:-1:0\" -flags -global_header -map 0 -hls_time " + chunkLen + " -hls_list_size 10 -hls_wrap 12 -start_number 1 stream.m3u8"
 			args = "-y -i udp://@" + cfg.Source + " -vcodec libx264 -crf 23 -preset superfast -profile:v baseline -deinterlace -level 3.0 -g 25 -acodec libmp3lame -flags -global_header -map 0 -f segment -segment_time " + chunkLen + " -segment_list_size 6 -segment_list stream.m3u8 -segment_list_type m3u8 -segment_format mpegts stream%01d.ts"
 		} else {
-			//args = "-i udp://@" + cfg.Source + "?fifo_size=1000000&overrun_nonfatal=1 -y -threads 8 -c:a aac -ac 2 -strict -2 -c:v libx264 -vprofile baseline -x264opts level=41 -flags -global_header -map 0 -hls_time " + chunkLen + " -hls_list_size 10 -hls_wrap 12 -start_number 1 stream.m3u8"
 			args = "-y -i udp://@" + cfg.Source + " -vcodec libx264 -crf 23 -preset superfast -profile:v baseline -level 3.0 -g 25 -acodec libmp3lame -flags -global_header -map 0 -f segment -segment_time " + chunkLen + " -segment_list_size 6 -segment_list stream.m3u8 -segment_list_type m3u8 -segment_format mpegts stream%01d.ts"
 		}
 	}
