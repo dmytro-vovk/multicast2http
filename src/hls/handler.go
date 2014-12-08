@@ -3,6 +3,7 @@ package hls
 import (
 	"auth"
 	"conf"
+	"encoding/json"
 	"fmt"
 	"log"
 	"net"
@@ -40,8 +41,10 @@ func UrlHandler(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func ChannelsListHandler(w http.ResponseWriter, r *http.Request) {
-	// TODO output json list of available streams
+// output json list of available streams
+func ChannelsListHandler(w http.ResponseWriter, _ *http.Request) {
+	w.Header().Set("Content-Type", "text/json; charset=utf-8")
+	json.NewEncoder(w).Encode(streamsList)
 }
 
 func CrossDomainXmlHandler(w http.ResponseWriter, _ *http.Request) {

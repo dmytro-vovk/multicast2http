@@ -32,7 +32,7 @@ func ServerFail(w http.ResponseWriter, message string) {
 /**
  * Responds with server status page
  */
-func ShowStatus(w http.ResponseWriter, r *http.Request) {
+func ShowStatus(w http.ResponseWriter, _ *http.Request) {
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	fmt.Fprintln(w, "<h1>Server Status</h1>")
 	fmt.Fprintf(w, "<p>Uptime: %s</p>", time.Since(startTime))
