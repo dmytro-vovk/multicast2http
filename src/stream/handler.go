@@ -30,7 +30,7 @@ func UrlHandler(w http.ResponseWriter, r *http.Request) {
 			} else if parsedUrl.Scheme == "http" {
 				HttpStream(w, url)
 			} else {
-				log.Printf("Unsupported stream protocol: ", parsedUrl.Scheme)
+				log.Printf("Unsupported stream protocol: %s", parsedUrl.Scheme)
 				response.NotFound(w)
 				return
 			}

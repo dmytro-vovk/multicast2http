@@ -11,5 +11,9 @@
     "dir": "/var/hls",
     "ffmpeg": "/usr/bin/ffmpeg",
     "chunk-len": 10
+  },
+  "cache": {
+    "every": 5,
+    "ttl": 120
   }
 }

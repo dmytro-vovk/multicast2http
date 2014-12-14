@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html>
+<head lang="en">
+    <meta charset="UTF-8">
+    <title>Веб-телевизор</title>
+    <meta name="author" content="Dmitry Vovk <dmitry.vovk@gmail.com>">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            background-color: black;
+        }
+
+        #player-container {
+            position: relative;
+            overflow: hidden;
+            width: 100%;
+            height: 100%;
+            z-index: 1;
+        }
+
+        #list {
+            display: block;
+            position: fixed;
+            right: 20px;
+            top: 20px;
+            z-index: 100;
+            background-color: #2d3035;
+            color: white;
+            padding: 10px;
+            border: 1px solid #ccc;
+            border-top-width: 7px;
+            border-bottom-width: 7px;
+            overflow: auto;
+        }
+
+        #list li {
+            list-style-type: none;
+            cursor: pointer;
+            padding: 5px 15px;
+            border-left: 4px solid #2d3035;
+            background-color: #2d3035;
+        }
+
+        #list li:hover {
+            color: black;
+            background-color: white;
+            border-left: 4px solid rgb(121, 196, 48);
+        }
+
+        #list li.current {
+            color: white;
+            background: #79C430;
+            border-left: 4px solid rgb(72, 142, 3);
+            text-shadow: 1px 1px 1px black;
+        }
+    </style>
+</head>
+<body>
+<div id="player-container">
+    <object classid="clsid:d27cdb6e-ae6d-11cf-96b8-444553540000"
+            codebase=""
+            id="tvplayer"
+            width="100%"
+            height="100%">
+        <param name="movie" value="player.swf"/>
+        <param name="quality" value="autohigh"/>
+        <param name="swliveconnect" value="true"/>
+        <param name="hls_debug" value="true"/>
+        <param name="allowScriptAccess" value="sameDomain"/>
+        <param name="bgcolor" value="#0"/>
+        <param name="allowFullScreen" value="true"/>
+        <param name="wmode" value="window"/>
+        <embed src="player.swf"
+               width="100%"
+               height="100%"
+               name="tvplayer"
+               quality="autohigh"
+               hls_debug="true"
+               bgcolor="#0"
+               align="middle"
+               allowFullScreen="true"
+               allowScriptAccess="sameDomain"
+               type="application/x-shockwave-flash"
+               swliveconnect="true"
+               wmode="window"
+               pluginspage="http://www.macromedia.com/go/getflashplayer">
+        </embed>
+    </object>
+</div>
+<ul id="list">
+    <li>Загрузка&hellip;</li>
+</ul>
+<script>
+    document.getElementById('list').style.maxHeight = (parseInt(window.innerHeight) - 20 - 20 - 20 - 7 - 7) + 'px';
+    var player_id = 'tvplayer';
+    var player;
+    var BASE_URL = 'http://tv.boyarka.name';
+    var SUFFIX = '/stream.m3u8';
+</script>
+<script type="text/javascript" src="player.js"></script>
+</body>
+</html>

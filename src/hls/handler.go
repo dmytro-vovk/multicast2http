@@ -1,17 +1,16 @@
 package hls
 
 import (
-	"auth"
+	"cache"
 	"conf"
 	"encoding/json"
 	"fmt"
+	"io/ioutil"
 	"log"
-	"net"
 	"net/http"
 	"path/filepath"
 	"response"
 	"strings"
-	"time"
 )
 
 func UrlHandler(w http.ResponseWriter, r *http.Request) {
@@ -20,25 +19,50 @@ func UrlHandler(w http.ResponseWriter, r *http.Request) {
 		http.Redirect(w, r, r.URL.Path+"/stream.m3u8", http.StatusFound)
 		return
 	}
-	// Track number of connected users
-	conf.StatsChannel <- true
-	defer func() {
-		time.Sleep(time.Duration(conf.Conf().Hls.ChunkLen) * time.Second)
-		conf.StatsChannel <- false
-	}()
 	prefix := filepath.Dir(r.URL.Path)
-	if url, ok := conf.Conf().Urls[prefix]; ok {
-		if auth.CanAccess(url, r.RemoteAddr) {
-			host, _, _ := net.SplitHostPort(r.RemoteAddr)
-			log.Printf("Client %s requests file %s", host, r.RequestURI)
-			http.ServeFile(w, r, HLSDir+r.RequestURI)
-		} else {
-			http.ServeFile(w, r, conf.Conf().FakeStream)
-		}
+	if _, ok := conf.Conf().Urls[prefix]; ok {
+		deliverFile(w, HLSDir+r.RequestURI)
 	} else {
 		log.Printf("Source not found for URL prefix %s", prefix)
 		response.NotFound(w)
 	}
+}
+
+func deliverFile(w http.ResponseWriter, fileName string) {
+	if strings.HasSuffix(fileName, ".ts") {
+		deliverTs(w, fileName)
+	} else if strings.HasSuffix(fileName, ".m3u8") {
+		deliverPlaylist(w, fileName)
+	} else {
+		w.Header().Set("Content-Type", "application/octet-stream")
+		b, err := ioutil.ReadFile(fileName)
+		if err != nil {
+			response.NotFound(w)
+		}
+		w.Write(b)
+	}
+}
+
+// we do not cache playlists
+func deliverPlaylist(w http.ResponseWriter, fileName string) {
+	b, err := ioutil.ReadFile(fileName)
+	if err != nil {
+		response.NotFound(w)
+		return
+	}
+	w.Header().Set("Content-Type", "application/x-mpegurl")
+	w.Write(b)
+}
+
+// cache TS files
+func deliverTs(w http.ResponseWriter, fileName string) {
+	b, err := cache.Cache.Get(fileName)
+	if err != nil {
+		response.NotFound(w)
+		return
+	}
+	w.Header().Set("Content-Type", "video/mp2t")
+	w.Write(b)
 }
 
 // output json list of available streams

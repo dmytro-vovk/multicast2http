@@ -16,6 +16,7 @@ import (
 )
 
 type Url struct {
+	Title       string      `json:"title"`
 	Source      string      `json:"source"`      // IP:port of stream source
 	FfmpegArgs  string      `json:"ffmpeg-args"` // ...or string or arguments to pass to ffmpeg
 	Interface   string      `json:"interface"`   // NIC name
@@ -36,13 +37,19 @@ type hlsConfig struct {
 	ChunkLen int    `json:"chunk-len"`
 }
 
+type cacheConfig struct {
+	Every   int `json:"every"`
+	Expires int `json:"ttl"`
+}
+
 type configType struct {
-	Sources    string    `json:"sources"`
-	Networks   string    `json:"networks"`
-	Listen     string    `json:"listen"`
-	FakeStream string    `json:"fake-stream"`
-	Web        webConfig `json:"web"`
-	Hls        hlsConfig `json:"hls"`
+	Sources    string      `json:"sources"`
+	Networks   string      `json:"networks"`
+	Listen     string      `json:"listen"`
+	FakeStream string      `json:"fake-stream"`
+	Web        webConfig   `json:"web"`
+	Hls        hlsConfig   `json:"hls"`
+	Cache      cacheConfig `json:"cache"`
 	Urls       UrlConfig
 }
 
@@ -108,7 +115,7 @@ func configValid(config UrlConfig) bool {
 			return false
 		}
 		if url.FfmpegArgs != "" && url.Source != "" {
-			log.Printf("In source %s use either source or ffmpeg-args, but not both")
+			log.Printf("In source %s use either source or ffmpeg-args, but not both", url.Source)
 			return false
 		}
 		if url.FfmpegArgs == "" {
