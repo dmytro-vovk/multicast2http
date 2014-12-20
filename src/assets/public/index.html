@@ -35,6 +35,14 @@
             border-top-width: 7px;
             border-bottom-width: 7px;
             overflow: auto;
+            opacity: 0.3;
+            -webkit-box-shadow: 0 0 10px 5px rgba(0, 0, 0, 0.75);
+            -moz-box-shadow: 0 0 10px 5px rgba(0, 0, 0, 0.75);
+            box-shadow: 0 0 10px 5px rgba(0, 0, 0, 0.75);
+        }
+
+        #list:hover {
+            opacity: 0.8;
         }
 
         #list li {
@@ -73,7 +81,7 @@
         <param name="allowScriptAccess" value="sameDomain"/>
         <param name="bgcolor" value="#0"/>
         <param name="allowFullScreen" value="true"/>
-        <param name="wmode" value="window"/>
+        <param name="wmode" value="opaque"/>
         <embed src="player.swf"
                width="100%"
                height="100%"
@@ -86,7 +94,7 @@
                allowScriptAccess="sameDomain"
                type="application/x-shockwave-flash"
                swliveconnect="true"
-               wmode="window"
+               wmode="opaque"
                pluginspage="http://www.macromedia.com/go/getflashplayer">
         </embed>
     </object>
@@ -98,8 +106,8 @@
     document.getElementById('list').style.maxHeight = (parseInt(window.innerHeight) - 20 - 20 - 20 - 7 - 7) + 'px';
     var player_id = 'tvplayer';
     var player;
-    var BASE_URL = 'http://tv.boyarka.name';
     var SUFFIX = '/stream.m3u8';
+    var useHtml5 = navigator.userAgent.match(/(iPad)|(iPhone)|(iPod)|(android)|(webOS)/i);
 </script>
 <script type="text/javascript" src="player.js"></script>
 </body>

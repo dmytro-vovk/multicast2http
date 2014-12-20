@@ -66,22 +66,19 @@ var СhanList = function (data) {
 };
 
 function onHLSReady() {
-    var url = BASE_URL + ccc.getCurrent().url + SUFFIX;
+    var url = channels.getCurrent().url + SUFFIX;
     player = getPlayer(player_id);
     if (player != null) {
         player.height = parseInt(window.innerHeight);
         load(url);
-        play();
     }
 }
 
 function chanSwitch() {
-    player.playerStop();
     var id = parseInt(this.getAttribute('data-id'));
-    ccc.setCurrent(id);
-    load(BASE_URL + ccc.getCurrent().url + SUFFIX);
-    play();
-    ccc.render('list', chanSwitch);
+    channels.setCurrent(id);
+    load(channels.getCurrent().url + SUFFIX);
+    channels.render('list', chanSwitch);
 }
 
 function getChannels(url, success, error) {
@@ -113,14 +110,16 @@ function getPlayer(id) {
     }
 }
 
-var ccc;
+var channels;
 
 getChannels(
-    BASE_URL + '/channels.json',
+    '/channels.json',
     function (data) {
-        ccc = new СhanList(data);
-        console.log(ccc.getCurrent().url);
-        ccc.render('list', chanSwitch);
+        channels = new СhanList(data);
+        channels.render('list', chanSwitch);
+        if (useHtml5) {
+            load(channels.getCurrent().url + SUFFIX);
+        }
     },
     function () {
         var list = document.getElementById('list');
@@ -132,12 +131,18 @@ getChannels(
 );
 
 function load(url) {
-    player.playerStop();
-    player.playerLoad(url);
-}
-
-function play() {
-    player.playerPlay(-1);
+    if (useHtml5) {
+        document.getElementById('player-container').innerHTML =
+            '<video id="vplayer" width="100%" height="100%" src="' + url + '" autoplay type="application/x-mpegURL"></video>';
+        var vplayer = document.getElementById('vplayer');
+        vplayer.play();
+        vplayer.load();
+        vplayer.play();
+    } else {
+        player.playerStop();
+        player.playerLoad(url);
+        player.playerPlay(-1);
+    }
 }
 
 function onError(code, url, msg) {
@@ -147,15 +152,29 @@ function onError(code, url, msg) {
 document.onkeyup = function (evt) {
     if (evt.keyCode === 40) {
         console.log('next channel');
-        ccc.next();
-        load(BASE_URL + ccc.getCurrent().url + SUFFIX);
-        play();
-        ccc.render('list', chanSwitch);
+        channels.next();
+        load(channels.getCurrent().url + SUFFIX);
+        channels.render('list', chanSwitch);
     } else if (evt.keyCode === 38) {
         console.log('prev channel');
-        ccc.prev();
-        load(BASE_URL + ccc.getCurrent().url + SUFFIX);
-        play();
-        ccc.render('list', chanSwitch);
+        channels.prev();
+        load(channels.getCurrent().url + SUFFIX);
+        channels.render('list', chanSwitch);
     }
+};
+
+window.onresize = function () {
+    var w = parseInt(window.innerWidth), h = parseInt(window.innerHeight);
+    if (useHtml5) {
+        var vplayerContainer = document.getElementById('player-container');
+        var vplayer = document.getElementById('vplayer');
+        vplayerContainer.style.width = w + 'px';
+        vplayerContainer.style.height = h + 'px';
+        vplayer.style.width = w + 'px';
+        vplayer.style.height = h + 'px';
+    } else {
+        player.height = h;
+        player.width = w;
+    }
+    document.getElementById('list').style.maxHeight = (parseInt(window.innerHeight) - 20 - 20 - 20 - 7 - 7) + 'px';
 };
